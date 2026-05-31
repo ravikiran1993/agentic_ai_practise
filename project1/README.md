@@ -43,6 +43,66 @@ Tips:
 - Press **▶** (bottom-left of the map) to animate; drag the slider to jump to a year.
 - Open **ℹ️ About the data & method** in the sidebar for the data caveats.
 
+## 🎨 "Top product" vs "Dominant category" — what the colours mean
+The map can be coloured two ways (the **Colour the map by** toggle). They sound
+similar but answer different questions:
+
+- **Top product** → look at the country's **single #1 commodity** (most tonnes)
+  and colour by *that one item's* category.
+  *Answers: "What's the biggest single thing they produce?"*
+- **Dominant category** → take the **top-N** items, group them by category,
+  **add up the tonnes within each category**, and colour by whichever category
+  total is largest.
+  *Answers: "Which **type** of food dominates their output overall?"*
+
+### Worked example 1 — India (All products, 2020, top 5)
+
+| Rank | Product | Tonnes | Category |
+|---|---|---|---|
+| 1 | Sugar cane | 370.5 Mt | Crop |
+| 2 | Rice | 182.7 Mt | Crop |
+| 3 | Raw milk of cattle | 108.3 Mt | Milk |
+| 4 | Wheat | 107.9 Mt | Crop |
+| 5 | Raw milk of buffalo | 95.4 Mt | Milk |
+
+- **Top product** → #1 is **Sugar cane** → category **Crop** → India is green.
+- **Dominant category** → Crop = 370.5 + 182.7 + 107.9 = **661 Mt** vs
+  Milk = 108.3 + 95.4 = **204 Mt** → **Crop** wins → India is green.
+
+➡️ **For India both modes give "Crop"** — they *agree*, because crops are both
+the single biggest item *and* the biggest group. India's colour doesn't change
+when you flip the toggle.
+
+### Worked example 2 — Germany (All products, 2020, top 5): where they DISAGREE
+
+| Rank | Product | Tonnes | Category |
+|---|---|---|---|
+| 1 | **Raw milk of cattle** | 33.2 Mt | **Milk** |
+| 2 | Sugar beet | 28.6 Mt | Crop |
+| 3 | Wheat | 22.2 Mt | Crop |
+| 4 | Potatoes | 11.7 Mt | Crop |
+| 5 | Barley | 10.8 Mt | Crop |
+
+- **Top product** → #1 is **milk** → Germany is **Milk (blue)**.
+- **Dominant category** → Crop = 28.6 + 22.2 + 11.7 + 10.8 = **73.3 Mt** vs
+  Milk = **33.2 Mt** → Germany is **Crop (green)**.
+
+➡️ **Germany literally changes colour when you switch modes** — blue under
+"Top product", green under "Dominant category". Milk is the biggest *single*
+product, but grains + sugar beet + potatoes *together* out-produce it.
+
+### The intuition
+- **Top product** can be skewed by **one giant item**.
+- **Dominant category** reflects the **overall mix** of what a country makes.
+- They differ whenever **no single category owns both** the #1 slot *and* the
+  largest combined volume (Germany: milk owns #1, crops own the volume).
+- The **Top-N slider** affects *Dominant category* (more items get summed), but
+  *Top product* always just looks at rank #1.
+
+**Rule of thumb:** use **Top product** for the headline ("their flagship
+commodity") and **Dominant category** to ask "is this a *crop-based* or
+*livestock-based* agriculture?"
+
 ## Quick start
 ```
 pip install -r requirements.txt
