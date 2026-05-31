@@ -1,5 +1,9 @@
 # 🌍 What the World Grows & Raises (1961–2024)
 
+### ▶️ **[Open the live app](https://agenticaipractise-tbqheenguqz7cwbxdps6vf.streamlit.app/)** — hover countries, drag the year slider, press play. No install needed.
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://agenticaipractise-tbqheenguqz7cwbxdps6vf.streamlit.app/)
+
 An interactive world-map dashboard showing, for every country and year, the
 **top agricultural products** — colour-coded by category (crops, beef, poultry,
 pork, sheep/goat, milk, eggs…). Built for the agentiki.ai Maven cohort
