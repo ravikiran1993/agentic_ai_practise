@@ -15,6 +15,7 @@ product is treated as a primary Crop.
 
 Categories use FAO `Item Code` (the plain numeric code, not the CPC code).
 """
+from __future__ import annotations
 
 # Category display names (also the keys used for colouring in the app).
 CROP = "Crop"
