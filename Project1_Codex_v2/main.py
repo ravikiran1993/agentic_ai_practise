@@ -352,6 +352,49 @@ def build_crop_tile_options(data: pd.DataFrame, selected_items: list[str], limit
     return options
 
 
+def simplify_crop_label(item: str) -> str:
+    label = str(item)
+    replacements = {
+        "Cereals, primary": "Cereals",
+        "Fruit Primary": "Fruit",
+        "Vegetables Primary": "Vegetables",
+        "Roots and Tubers, Total": "Root crops",
+        "Milk, Total": "Milk",
+        "Meat, Total": "Meat",
+        "Raw milk of cattle": "Cattle milk",
+        "Raw milk of sheep": "Sheep milk",
+        "Skim milk of cows": "Skim milk",
+        "Other vegetables, fresh n.e.c.": "Other vegetables",
+        "Maize (corn)": "Maize",
+        "Onions and shallots, dry (excluding dehydrated)": "Onions",
+    }
+    if label in replacements:
+        return replacements[label]
+
+    label = re.sub(r",?\s*primary$", "", label, flags=re.IGNORECASE)
+    label = re.sub(r",?\s*total$", "", label, flags=re.IGNORECASE)
+    label = label.replace(" n.e.c.", "")
+    label = label.replace(" (excluding dehydrated)", "")
+    return label.strip()
+
+
+def crop_icon(item: str) -> str:
+    item_text = str(item).casefold()
+    if any(word in item_text for word in ["milk", "meat", "cattle", "sheep", "cow"]):
+        return "🥛"
+    if any(word in item_text for word in ["fruit", "grape", "apple", "orange", "watermelon"]):
+        return "🍎"
+    if any(word in item_text for word in ["vegetable", "onion", "potato", "root", "tuber"]):
+        return "🥕"
+    if any(word in item_text for word in ["wheat", "rice", "maize", "barley", "cereal"]):
+        return "🌾"
+    return "🌱"
+
+
+def format_crop_option(item: str) -> str:
+    return f"{crop_icon(item)} {simplify_crop_label(item)}"
+
+
 def growth_percentage(start_value: float, end_value: float) -> float | None:
     if start_value == 0:
         return None
@@ -832,6 +875,15 @@ def inject_dashboard_css() -> None:
             box-shadow: 0 10px 24px rgba(67, 212, 119, 0.2);
             font-size: 0.86rem;
             font-weight: 900;
+        }
+        .selected-crop-empty {
+            color: #dfe6d8;
+            padding: 0.42rem 0.68rem;
+            border: 1px dashed rgba(156, 176, 204, 0.42);
+            border-radius: 999px;
+            background: rgba(17, 24, 39, 0.72);
+            font-size: 0.86rem;
+            font-weight: 850;
         }
         .insight-card {
             min-height: 142px;
@@ -1364,8 +1416,10 @@ def main() -> None:
         .head(6)
         .index.tolist()
     )
-    selected_items = st.session_state.get("selected_items", default_items)
-    selected_items = [item for item in selected_items if item in available_items] or default_items
+    if "selected_items" in st.session_state:
+        selected_items = [item for item in st.session_state["selected_items"] if item in available_items]
+    else:
+        selected_items = default_items
 
     min_year = int(data["Year"].min())
     max_year = int(data["Year"].max())
@@ -1428,18 +1482,41 @@ def main() -> None:
             .index.tolist()
         )
         tile_options = build_crop_tile_options(grouped_country_data, selected_items, limit=18)
+        crop_action_cols = st.columns([0.16, 0.18, 0.16, 0.5])
+        with crop_action_cols[0]:
+            if st.button("Top 6", key="select_top_crops", help="Select the six biggest crops in this country."):
+                st.session_state["selected_items"] = default_items[:6]
+                st.rerun()
+        with crop_action_cols[1]:
+            if st.button("Select shown", key="select_shown_crops", help="Select every crop currently shown below."):
+                st.session_state["selected_items"] = tile_options
+                st.rerun()
+        with crop_action_cols[2]:
+            if st.button("Clear", key="clear_selected_crops", help="Unselect all crops."):
+                st.session_state["selected_items"] = []
+                st.rerun()
+        default_crop_selection = (
+            [item for item in selected_items if item in tile_options]
+            if "selected_items" in st.session_state
+            else default_items[:6]
+        )
         selected_items = st.pills(
             "Crops",
             tile_options,
             selection_mode="multi",
-            default=[item for item in selected_items if item in tile_options] or default_items[:6],
+            default=default_crop_selection,
+            format_func=format_crop_option,
             key="selected_items",
             width="stretch",
             help="Click crops to add or remove them from the map, charts, and rankings.",
         )
-        selected_items = [item for item in selected_items if item in available_items] or default_items
-        selected_chips = "".join(
-            f'<span class="selected-crop-chip">{escape(item)}</span>' for item in selected_items
+        selected_items = [item for item in (selected_items or []) if item in available_items]
+        selected_chips = (
+            "".join(
+                f'<span class="selected-crop-chip">{escape(format_crop_option(item))}</span>'
+                for item in selected_items
+            )
+            or '<span class="selected-crop-empty">No crops selected</span>'
         )
         st.markdown(
             f"""
@@ -1534,7 +1611,7 @@ def main() -> None:
                 leading_crop = top_latest.iloc[0]
                 st.markdown(
                     f"In **{latest_year}**, the biggest crop shown for **{country}** is "
-                    f"**{leading_crop['Item']}** "
+                    f"**{format_crop_option(leading_crop['Item'])}** "
                     f"({format_tonnes(float(leading_crop['Value']))})."
                 )
                 st.caption(
@@ -1543,7 +1620,10 @@ def main() -> None:
         with table_col:
             st.subheader(f"Top Crops, {latest_year}")
             st.dataframe(
-                top_latest.assign(Value=top_latest["Value"].map(format_tonnes)),
+                top_latest.assign(
+                    Item=top_latest["Item"].map(format_crop_option),
+                    Value=top_latest["Value"].map(format_tonnes),
+                ),
                 width="stretch",
                 hide_index=True,
             )
@@ -1557,20 +1637,21 @@ def main() -> None:
         if map_data.empty:
             st.info("No map data for the selected crops and selected end year.")
         else:
+            map_plot_data = map_data.assign(Crop=map_data["Item"].map(format_crop_option))
             fig = px.choropleth(
-                map_data,
+                map_plot_data,
                 locations="Area",
                 locationmode="country names",
-                color="Item",
+                color="Crop",
                 hover_name="Area",
                 hover_data={
-                    "Item": True,
+                    "Crop": True,
                     "ValueLabel": True,
                     "Area": False,
                     "Value": False,
                 },
                 projection="natural earth",
-                labels={"Item": "Top crop", "ValueLabel": "Production"},
+                labels={"Crop": "Top crop", "ValueLabel": "Production"},
                 color_discrete_sequence=CHART_COLORS,
             )
             apply_chart_theme(fig, height=620)
@@ -1595,13 +1676,14 @@ def main() -> None:
         if filtered.empty:
             st.info("No data for the current filters.")
         else:
+            trend_plot_data = filtered.assign(Crop=filtered["Item"].map(format_crop_option))
             fig = px.line(
-                filtered,
+                trend_plot_data,
                 x="Year",
                 y="Value",
-                color="Item",
+                color="Crop",
                 markers=True,
-                labels={"Value": "Production quantity (tonnes)", "Item": "Crop"},
+                labels={"Value": "Production quantity (tonnes)", "Crop": "Crop"},
                 color_discrete_sequence=CHART_COLORS,
             )
             apply_chart_theme(fig, height=540)
@@ -1646,6 +1728,7 @@ def main() -> None:
                     "Crop",
                     common_crops,
                     index=common_crops.index(preferred_crop),
+                    format_func=format_crop_option,
                     key="compare_crop",
                 )
             else:
@@ -1675,7 +1758,7 @@ def main() -> None:
                 insight_cols[3].metric(f"{leader['country']} growth", growth_text)
 
                 st.markdown(
-                    f"**{leader['country']}** grows more **{compare_crop}** than **{runner_up['country']}** "
+                    f"**{leader['country']}** grows more **{format_crop_option(compare_crop)}** than **{runner_up['country']}** "
                     f"in **{comparison_result['latest_year']}**, by **{format_tonnes(comparison_result['gap'])}**."
                 )
                 compare_fig = px.line(

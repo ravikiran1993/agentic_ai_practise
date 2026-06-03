@@ -251,6 +251,20 @@ class DashboardDataTests(unittest.TestCase):
         self.assertTrue(any("India" in question for question in questions))
         self.assertTrue(any("Rice" in question for question in questions))
 
+    def test_simplify_crop_label_makes_faostat_names_human_readable(self):
+        self.assertEqual(main.simplify_crop_label("Cereals, primary"), "Cereals")
+        self.assertEqual(main.simplify_crop_label("Raw milk of cattle"), "Cattle milk")
+        self.assertEqual(
+            main.simplify_crop_label("Other vegetables, fresh n.e.c."),
+            "Other vegetables",
+        )
+
+    def test_format_crop_option_keeps_simple_label_with_icon(self):
+        formatted = main.format_crop_option("Maize (corn)")
+
+        self.assertIn("Maize", formatted)
+        self.assertNotIn("(corn)", formatted)
+
     def test_parse_llm_insights_limits_to_three_non_empty_items(self):
         parsed = main.parse_llm_insights(
             "1. Rice is the dependency risk.\n"
