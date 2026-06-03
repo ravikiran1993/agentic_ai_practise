@@ -26,7 +26,7 @@ For local development, create `.streamlit/secrets.toml`:
 
 ```toml
 GEMINI_API_KEY = "your_real_gemini_api_key"
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # Optional fallback — leave out to run Gemini-only
 GROQ_API_KEY = "your_real_groq_api_key"

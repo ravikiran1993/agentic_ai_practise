@@ -23,7 +23,7 @@ FAOSTAT_QCL_URL = (
 GEMINI_CHAT_COMPLETIONS_URL = (
     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 )
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 OWID_CROP_SOURCES = {
@@ -1735,11 +1735,25 @@ def main() -> None:
         filtered=filtered,
         year_range=year_range,
     )
-    insights = generate_llm_insights(
-        insight_facts,
-        providers,
-        insight_facts["fallback_insights"],
-    )
+    # Streamlit reruns the whole script on every widget interaction (slider drag,
+    # tab switch, crop click). Calling the LLM here unconditionally would fire a
+    # request per rerun and blow past the free-tier rate limit almost immediately.
+    # So only regenerate insights when the country/crops/year-range actually change;
+    # otherwise reuse the cached result for this view.
+    insight_signature = (country, tuple(selected_items), tuple(year_range))
+    if (
+        st.session_state.get("insight_signature") == insight_signature
+        and st.session_state.get("insights")
+    ):
+        insights = st.session_state["insights"]
+    else:
+        insights = generate_llm_insights(
+            insight_facts,
+            providers,
+            insight_facts["fallback_insights"],
+        )
+        st.session_state["insight_signature"] = insight_signature
+        st.session_state["insights"] = insights
     insight_cols = st.columns(3)
     for index, insight in enumerate(insights):
         with insight_cols[index]:
