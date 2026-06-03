@@ -29,9 +29,9 @@ Data: **UN FAO — FAOSTAT**, *Production: Crops and livestock products*
 - **Hover** any country for its ranked top-N products.
 - **Country drill-down**: top products for a chosen year + a stacked-area view
   of each category over time.
-- **🤖 AI data assistant (Grok)**: ask free-form questions or generate insights
+- **🤖 AI data assistant (Groq)**: ask free-form questions or generate insights
   about the selected country/year — grounded in the real figures (optional;
-  needs an xAI API key, see below).
+  needs a free Groq API key, see below).
 
 ## 🎯 Getting the most out of the map
 A few combinations that tell the best stories (great for a live walk-through):
@@ -133,20 +133,23 @@ streamlit run app.py            # launch the dashboard
 4. Map FAO country names → **ISO-3** codes (drops regional aggregates).
 5. Save a compact long-format table to `data/processed/production.parquet`.
 
-## 🤖 AI data assistant (Grok) — optional
-The dashboard has a built-in assistant (powered by **xAI's Grok**) that answers
-questions and generates insights about the data. For each question it sends Grok
-a compact, factual context built from the dataframe — the selected country's top
-products and long-run trend, plus that year's global leaders — so answers cite
-real figures (in million tonnes).
+## 🤖 AI data assistant (Groq) — optional, free
+The dashboard has a built-in assistant (powered by **Groq's free API**) that
+answers questions and generates insights about the data. For each question it
+sends the model a compact, factual context built from the dataframe — the
+selected country's top products and long-run trend, plus that year's global
+leaders — so answers cite real figures (in million tonnes).
+
+> **Groq vs Grok:** "Groq" (used here) is a *free* inference service running
+> open models — not "Grok" (xAI's paid model). Easy to mix up!
 
 It's **off until you add an API key** (the app shows a friendly prompt otherwise):
 
-- **Locally:** copy `.env.example` to `.env` and set `XAI_API_KEY=xai-...`
-  (get a key at https://console.x.ai). Optionally set `XAI_MODEL` (default
-  `grok-2-latest`) to whatever model your account supports (e.g. `grok-3`).
+- **Locally:** copy `.env.example` to `.env` and set `GROQ_API_KEY=gsk_...`
+  (get a free key at https://console.groq.com — no credit card). Optionally set
+  `GROQ_MODEL` (default `llama-3.3-70b-versatile`).
 - **On Streamlit Cloud:** *Manage app → Settings → Secrets* and add
-  `XAI_API_KEY = "xai-..."` (and optionally `XAI_MODEL = "..."`).
+  `GROQ_API_KEY = "gsk_..."` (and optionally `GROQ_MODEL = "..."`).
 
 No key, no problem — every other feature works without it.
 

@@ -1,14 +1,17 @@
 """
-Grok (xAI) data assistant for the food-production dashboard.
+Groq-powered data assistant for the food-production dashboard.
 
 Builds a compact, factual context from the FAOSTAT dataframe (the selected
 country's top products + trend, and that year's global leaders) and sends it to
-the xAI Grok API so the model answers questions grounded in real figures.
+the Groq API so the model answers questions grounded in real figures.
 
-The xAI API is OpenAI-compatible (https://api.x.ai/v1). Provide credentials via:
-  * a local .env file:           XAI_API_KEY=xai-...
-  * Streamlit Cloud secrets:     XAI_API_KEY = "xai-..."
-Optionally set XAI_MODEL (defaults to "grok-2-latest").
+Groq offers a free API tier (no credit card) running fast open models, and its
+endpoint is OpenAI-compatible (https://api.groq.com/openai/v1). Provide creds via:
+  * a local .env file:           GROQ_API_KEY=gsk_...
+  * Streamlit Cloud secrets:     GROQ_API_KEY = "gsk_..."
+Optionally set GROQ_MODEL (defaults to "llama-3.3-70b-versatile").
+
+NOTE: "Groq" (this, free) is a different company from "Grok" (xAI, paid).
 """
 from __future__ import annotations
 
@@ -16,8 +19,8 @@ import os
 
 import pandas as pd
 
-XAI_URL = "https://api.x.ai/v1/chat/completions"
-DEFAULT_MODEL = "grok-2-latest"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = (
     "You are a concise, insightful data analyst embedded in an interactive "
@@ -43,11 +46,11 @@ def _secret(name: str):
 
 
 def get_api_key():
-    return _secret("XAI_API_KEY")
+    return _secret("GROQ_API_KEY")
 
 
 def get_model() -> str:
-    return _secret("XAI_MODEL") or DEFAULT_MODEL
+    return _secret("GROQ_MODEL") or DEFAULT_MODEL
 
 
 def _mt(v: float) -> str:
@@ -115,11 +118,11 @@ def _chat(messages: list[dict], max_tokens: int = 700,
           temperature: float = 0.4) -> str:
     key = get_api_key()
     if not key:
-        raise RuntimeError("No XAI_API_KEY configured.")
+        raise RuntimeError("No GROQ_API_KEY configured.")
     import requests
 
     resp = requests.post(
-        XAI_URL,
+        GROQ_URL,
         headers={"Authorization": f"Bearer {key}",
                  "Content-Type": "application/json"},
         json={"model": get_model(), "messages": messages,
@@ -128,7 +131,7 @@ def _chat(messages: list[dict], max_tokens: int = 700,
         timeout=60,
     )
     if resp.status_code != 200:
-        raise RuntimeError(f"xAI API error {resp.status_code}: {resp.text[:300]}")
+        raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text[:300]}")
     return resp.json()["choices"][0]["message"]["content"].strip()
 
 
