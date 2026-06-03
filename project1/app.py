@@ -46,6 +46,19 @@ FILTER_LIVESTOCK = "Livestock & meat (incl. milk, eggs)"
 FILTER_MEAT = "Meat only (no milk / eggs)"
 FILTER_OPTIONS = [FILTER_ALL, FILTER_CROPS, FILTER_LIVESTOCK, FILTER_MEAT]
 
+# Display-only icon labels (the underlying values above are unchanged, so all
+# filtering/logic keeps working — these just prettify the sidebar).
+FILTER_ICONS = {
+    FILTER_ALL: "🌍 All products",
+    FILTER_CROPS: "🌾 Crops only",
+    FILTER_LIVESTOCK: "🐄 Livestock & meat",
+    FILTER_MEAT: "🍗 Meat only",
+}
+MODE_TOP = "Top product"
+MODE_DOM = "Dominant category"
+MODE_OPTIONS = [MODE_TOP, MODE_DOM]
+MODE_ICONS = {MODE_TOP: "🥇 Top product", MODE_DOM: "🏆 Dominant category"}
+
 
 @st.cache_data(show_spinner=False)
 def load_data() -> pd.DataFrame:
@@ -255,34 +268,46 @@ def main() -> None:
 
     # ---- Sidebar controls ----
     with st.sidebar:
-        st.header("🗺️ Map controls")
-        mode = st.radio(
-            "Colour the map by",
-            ["Top product", "Dominant category"],
-            help="Top product: the country's single #1 commodity.\n\n"
-                 "Dominant category: the category with the most combined "
-                 "tonnage among the top-N commodities.",
-        )
-        group_choice = st.radio(
-            "Show which products",
-            FILTER_OPTIONS,
-            help="Raw tonnage is dominated by crops, sugar cane and milk.\n\n"
-                 "• **Livestock & meat** includes milk & eggs (milk usually "
-                 "wins on weight).\n"
-                 "• **Meat only** drops milk & eggs so beef / poultry / pork "
-                 "actually surface.",
-        )
-        top_n = st.slider("Top-N per country", 1, 10, 5,
-                          help="How many products feed the hover list, the "
-                               "dominance calc, and the country bar chart.")
-        st.divider()
-        st.header("🔎 Country focus")
-        st.caption("Drives the Country deep-dive & Ask AI tabs.")
-        countries = sorted(df["country"].unique())
-        default = countries.index("India") if "India" in countries else 0
-        country = st.selectbox("Country", countries, index=default)
-        year = st.slider("Focus year", int(df.year.min()), int(df.year.max()),
-                         int(df.year.max()))
+        st.markdown("## 🎛️ Controls")
+
+        with st.container(border=True):
+            st.markdown("#### 🗺️ Map")
+            mode = st.segmented_control(
+                "Colour the map by",
+                MODE_OPTIONS,
+                default=MODE_TOP,
+                format_func=lambda m: MODE_ICONS[m],
+                help="**Top product** — colour by the country's single #1 "
+                     "commodity.\n\n**Dominant category** — colour by the "
+                     "category with the most combined tonnage in the top-N.",
+            ) or MODE_TOP
+            group_choice = st.radio(
+                "Show which products",
+                FILTER_OPTIONS,
+                format_func=lambda g: FILTER_ICONS[g],
+                help="Raw tonnage is dominated by crops, sugar cane and milk.\n\n"
+                     "• **Livestock & meat** includes milk & eggs (milk usually "
+                     "wins on weight).\n"
+                     "• **Meat only** drops milk & eggs so beef / poultry / pork "
+                     "actually surface.",
+            )
+            top_n = st.slider(
+                "🔢 Top-N per country", 1, 10, 5,
+                help="How many products feed the hover list, the dominance "
+                     "calc, and the country bar chart.")
+
+        with st.container(border=True):
+            st.markdown("#### 🔎 Country focus")
+            st.caption("Used by the Country deep-dive & Ask AI tabs.")
+            countries = sorted(df["country"].unique())
+            default = countries.index("India") if "India" in countries else 0
+            country = st.selectbox("🌍 Country", countries, index=default)
+            year = st.slider("📅 Focus year", int(df.year.min()),
+                             int(df.year.max()), int(df.year.max()))
+
+        st.caption(
+            f"**Now showing** · {MODE_ICONS[mode]} · {FILTER_ICONS[group_choice]}"
+            f" · top {top_n} · {country} {year}")
 
     tab_map, tab_country, tab_ai, tab_about = st.tabs(
         ["🗺️ World map", "🔎 Country deep-dive", "🤖 Ask AI", "ℹ️ About"])
