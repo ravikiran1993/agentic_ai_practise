@@ -727,8 +727,8 @@ def inject_dashboard_css() -> None:
         }
         .st-key-floating_ai_button {
             position: fixed;
-            left: 1rem;
-            top: 1rem;
+            left: 0.85rem;
+            top: 48vh;
             z-index: 1002;
         }
         .st-key-floating_ai_button button {
@@ -743,8 +743,8 @@ def inject_dashboard_css() -> None:
         }
         .st-key-floating_ai_panel {
             position: fixed;
-            left: 1rem;
-            top: 5rem;
+            left: 5.35rem;
+            top: 24vh;
             z-index: 1001;
             width: min(430px, calc(100vw - 2rem));
             max-height: min(74vh, 680px);
@@ -783,11 +783,11 @@ def inject_dashboard_css() -> None:
         @media (max-width: 640px) {
             .st-key-floating_ai_button {
                 left: 0.75rem;
-                top: 1rem;
+                top: 56vh;
             }
             .st-key-floating_ai_panel {
                 left: 0.75rem;
-                top: 4.75rem;
+                top: 16vh;
                 width: calc(100vw - 1.5rem);
                 max-height: 72vh;
             }
@@ -811,10 +811,11 @@ def render_floating_assistant(
     if "assistant_open" not in st.session_state:
         st.session_state["assistant_open"] = False
     if "assistant_dock_y" not in st.session_state:
-        st.session_state["assistant_dock_y"] = 4
+        st.session_state["assistant_dock_y"] = 48
 
-    dock_y = int(st.session_state.get("assistant_dock_y", 4))
-    panel_y = min(dock_y + 8, 22)
+    dock_y = min(max(int(st.session_state.get("assistant_dock_y", 48)), 24), 76)
+    st.session_state["assistant_dock_y"] = dock_y
+    panel_y = min(max(dock_y - 24, 12), 38)
     st.markdown(
         f"""
         <style>
@@ -859,13 +860,13 @@ def render_floating_assistant(
         st.markdown('<div class="assistant-dock-label">Park on left edge</div>', unsafe_allow_html=True)
         st.slider(
             "Assistant position",
-            min_value=4,
-            max_value=72,
+            min_value=24,
+            max_value=76,
             value=dock_y,
             step=4,
             key="assistant_dock_y",
             label_visibility="collapsed",
-            help="Move the plant assistant up or down the left edge.",
+            help="Move the plant assistant up or down the left edge without covering the dashboard header.",
         )
 
         suggested_questions = build_suggested_questions(country, selected_items, year_range)
