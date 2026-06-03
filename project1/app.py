@@ -309,8 +309,8 @@ def main() -> None:
             f"**Now showing** · {MODE_ICONS[mode]} · {FILTER_ICONS[group_choice]}"
             f" · top {top_n} · {country} {year}")
 
-    tab_map, tab_country, tab_about = st.tabs(
-        ["🗺️ World map", "🔎 Country deep-dive", "ℹ️ About"])
+    tab_map, tab_country, tab_ai, tab_about = st.tabs(
+        ["🗺️ World map", "🔎 Country deep-dive", "🤖 Ask AI", "ℹ️ About"])
 
     with tab_map:
         frames = build_frames(group_choice, top_n, mode)
@@ -324,26 +324,19 @@ def main() -> None:
     with tab_country:
         render_country_tab(df, country, year, group_choice, top_n)
 
+    with tab_ai:
+        render_assistant(df, country, year, top_n)
+
     with tab_about:
         st.markdown(METHOD_NOTES)
 
     st.markdown(FOOTER_HTML, unsafe_allow_html=True)
 
-    # ---- Floating "Ask AI" assistant button (opens a pop-up dialog) ----
-    st.markdown(FAB_CSS, unsafe_allow_html=True)
-    with st.container(key="ai_fab"):
-        if st.button("🌱 Ask AI", key="ai_fab_btn",
-                     help="Ask the AI assistant about the data — questions "
-                          "& instant insights"):
-            assistant_dialog(df, country, year, top_n)
-
 
 def render_assistant(df: pd.DataFrame, country: str, year: int,
                      top_n: int) -> None:
-    """Assistant body — used inside the floating-button pop-up dialog.
-
-    Uses st.chat_input (not st.rerun) so it works correctly inside a dialog.
-    """
+    """The 🤖 Ask AI tab: insights button + a simple chat form."""
+    st.subheader("🤖 Ask the data assistant (Groq)")
     if not A.get_api_key():
         st.info(
             "Add your **free Groq API key** to turn on the assistant "
@@ -357,13 +350,13 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         return
 
     st.caption(
-        f"Grounded in the data for **{country}, {year}** plus that year's global "
-        "leaders. Try *“Why is sugar cane India's top crop?”*"
+        f"Grounded in the data for **{country}, {year}** (set in the sidebar) "
+        "plus that year's global leaders. Try *“Why is sugar cane India's top "
+        "crop?”* or *“How has its production mix changed since 1961?”*"
     )
     context = A.build_context(df, country, year, top_n)
 
-    if st.button(f"💡 Generate insights for {country}",
-                 use_container_width=True):
+    if st.button(f"💡 Generate insights for {country}"):
         with st.spinner("Thinking…"):
             try:
                 st.session_state["insight"] = A.generate_insights(context, country)
@@ -377,49 +370,20 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    if prompt := st.chat_input(f"Ask about {country} or the data…"):
-        st.session_state["chat"].append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
-                try:
-                    ans = A.answer_question(
-                        prompt, context, st.session_state["chat"][-7:-1])
-                except Exception as e:  # noqa: BLE001
-                    ans = f"⚠️ Couldn't reach the assistant: {e}"
-            st.markdown(ans)
+    with st.form("assistant_form", clear_on_submit=True):
+        q = st.text_input(f"Ask about {country} or the data",
+                          placeholder="Type a question…")
+        submitted = st.form_submit_button("Ask")
+    if submitted and q:
+        st.session_state["chat"].append({"role": "user", "content": q})
+        with st.spinner("Thinking…"):
+            try:
+                ans = A.answer_question(q, context,
+                                        st.session_state["chat"][:-1][-6:])
+            except Exception as e:  # noqa: BLE001
+                ans = f"⚠️ Couldn't reach the assistant: {e}"
         st.session_state["chat"].append({"role": "assistant", "content": ans})
-
-
-@st.dialog("🌱 Data assistant", width="small")
-def assistant_dialog(df: pd.DataFrame, country: str, year: int,
-                     top_n: int) -> None:
-    render_assistant(df, country, year, top_n)
-
-
-FAB_CSS = """
-<style>
-/* Floating "Ask AI" button, pinned bottom-right above everything */
-.st-key-ai_fab { position: fixed; bottom: 26px; right: 26px; z-index: 9999; }
-.st-key-ai_fab button {
-    border-radius: 999px; padding: 0.55rem 1.05rem; font-size: 1.0rem;
-    font-weight: 600; border: none; color: #FFFFFF;
-    background: linear-gradient(135deg,#3D7A2A 0%,#6FA84B 100%);
-    box-shadow: 0 6px 18px rgba(45,90,30,0.40);
-    transition: transform .12s ease, box-shadow .12s ease;
-}
-.st-key-ai_fab button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 9px 22px rgba(45,90,30,0.50);
-    color: #FFFFFF;
-}
-/* Lighten the assistant dialog's backdrop so the map stays visible behind it */
-div[data-testid="stDialog"]::backdrop,
-dialog[data-testid="stDialog"]::backdrop,
-dialog::backdrop { background-color: rgba(20,20,20,0.12) !important; }
-</style>
-"""
+        st.rerun()
 
 
 METHOD_NOTES = """
