@@ -15,6 +15,7 @@ NOTE: "Groq" (this, free) is a different company from "Grok" (xAI, paid).
 """
 from __future__ import annotations
 
+import json
 import os
 
 import pandas as pd
@@ -27,9 +28,12 @@ SYSTEM_PROMPT = (
     "world food-production dashboard built on UN FAOSTAT data (crop & livestock "
     "production, 1961-2024). Answer using the DATA CONTEXT provided (all figures "
     "in million tonnes, Mt) together with your general knowledge of agriculture, "
-    "economics and geography. Prefer the numbers in the context; if a specific "
-    "figure isn't there, say so briefly and answer qualitatively. Keep answers "
-    "short, clear and presentation-friendly. Never invent precise figures."
+    "economics and geography.\n\n"
+    "You also have TOOLS to query the full dataset on demand. When a question "
+    "needs figures not already in the context — a specific commodity, another "
+    "year, a multi-year trend, or a full ranking — CALL THE TOOLS instead of "
+    "guessing. Base any precise numbers on the context or tool results only; "
+    "never invent figures. Keep answers short, clear and presentation-friendly."
 )
 
 
@@ -177,35 +181,189 @@ def build_context(df: pd.DataFrame, country: str, year: int,
     return "\n".join(lines)
 
 
-def _chat(messages: list[dict], max_tokens: int = 700,
-          temperature: float = 0.4) -> str:
+def _post(messages: list[dict], tools: list | None = None,
+          max_tokens: int = 900, temperature: float = 0.3) -> dict:
+    """POST to the Groq chat-completions endpoint; return the parsed JSON."""
     key = get_api_key()
     if not key:
         raise RuntimeError("No GROQ_API_KEY configured.")
     import requests
 
+    payload = {"model": get_model(), "messages": messages,
+               "temperature": temperature, "max_tokens": max_tokens,
+               "stream": False}
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
     resp = requests.post(
         GROQ_URL,
         headers={"Authorization": f"Bearer {key}",
                  "Content-Type": "application/json"},
-        json={"model": get_model(), "messages": messages,
-              "temperature": temperature, "max_tokens": max_tokens,
-              "stream": False},
-        timeout=60,
+        json=payload, timeout=60,
     )
     if resp.status_code != 200:
         raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text[:300]}")
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    return resp.json()
+
+
+def _chat(messages: list[dict], max_tokens: int = 700,
+          temperature: float = 0.4) -> str:
+    return _post(messages, None, max_tokens, temperature)[
+        "choices"][0]["message"]["content"].strip()
+
+
+# --- Tools the model can call to query the FULL dataset on demand ----------
+TOOLS = [
+    {"type": "function", "function": {
+        "name": "country_products",
+        "description": "Top products a country produces in a given year, "
+                       "ranked by tonnage.",
+        "parameters": {"type": "object", "properties": {
+            "country": {"type": "string"},
+            "year": {"type": "integer"},
+            "top_n": {"type": "integer", "description": "default 10"}},
+            "required": ["country", "year"]}}},
+    {"type": "function", "function": {
+        "name": "commodity_top_producers",
+        "description": "Which countries produced the most of a commodity "
+                       "(an item like 'rice'/'wheat' or a category like "
+                       "'beef') in a given year.",
+        "parameters": {"type": "object", "properties": {
+            "commodity": {"type": "string"},
+            "year": {"type": "integer"},
+            "top_n": {"type": "integer", "description": "default 10"}},
+            "required": ["commodity", "year"]}}},
+    {"type": "function", "function": {
+        "name": "production_trend",
+        "description": "A country's production of a commodity over a range of "
+                       "years (yearly tonnage). Omit commodity for the "
+                       "country's total output.",
+        "parameters": {"type": "object", "properties": {
+            "country": {"type": "string"},
+            "commodity": {"type": "string"},
+            "start_year": {"type": "integer", "description": "default 1961"},
+            "end_year": {"type": "integer", "description": "default 2024"}},
+            "required": ["country"]}}},
+    {"type": "function", "function": {
+        "name": "country_ranking",
+        "description": "Countries ranked by total production tonnage in a "
+                       "year. Optional group: 'Crops' or 'Livestock & meat'.",
+        "parameters": {"type": "object", "properties": {
+            "year": {"type": "integer"},
+            "group": {"type": "string"},
+            "top_n": {"type": "integer", "description": "default 15"}},
+            "required": ["year"]}}},
+]
+
+
+def _resolve_country(df: pd.DataFrame, name: str):
+    names = list(df["country"].unique())
+    if name in names:
+        return name
+    low = name.strip().lower()
+    if low in _ALIASES and _ALIASES[low] in names:
+        return _ALIASES[low]
+    for n in names:
+        if n.lower() == low:
+            return n
+    cands = [n for n in names
+             if low in n.lower() or n.lower().split(",")[0].strip() == low]
+    return cands[0] if cands else None
+
+
+def _commodity_mask(frame: pd.DataFrame, query: str):
+    q = query.strip().lower()
+    return (frame["item"].str.lower().str.contains(q, regex=False)
+            | frame["category"].str.lower().str.contains(q, regex=False))
+
+
+def _run_tool(df: pd.DataFrame, name: str, args: dict) -> dict:
+    try:
+        if name == "country_products":
+            c = _resolve_country(df, args["country"])
+            if not c:
+                return {"error": f"country '{args['country']}' not found"}
+            yr, n = int(args["year"]), int(args.get("top_n", 10))
+            d = df[(df["country"] == c) & (df["year"] == yr)].nlargest(
+                n, "value_tonnes")
+            return {"country": c, "year": yr, "products": [
+                {"item": r["item"], "category": r["category"],
+                 "mt": round(r["value_tonnes"] / 1e6, 2)}
+                for _, r in d.iterrows()]}
+
+        if name == "commodity_top_producers":
+            yr, n, q = int(args["year"]), int(args.get("top_n", 10)), args["commodity"]
+            sub = df[(df["year"] == yr) & _commodity_mask(df, q)]
+            if sub.empty:
+                return {"error": f"no data for '{q}' in {yr}"}
+            agg = sub.groupby("country")["value_tonnes"].sum().nlargest(n)
+            return {"commodity": q, "year": yr, "matched_items":
+                    sorted(sub["item"].unique())[:8], "top_producers": [
+                        {"country": k, "mt": round(v / 1e6, 2)}
+                        for k, v in agg.items()]}
+
+        if name == "production_trend":
+            c = _resolve_country(df, args["country"])
+            if not c:
+                return {"error": f"country '{args['country']}' not found"}
+            s = int(args.get("start_year", 1961))
+            e = int(args.get("end_year", 2024))
+            d = df[(df["country"] == c) & (df["year"].between(s, e))]
+            q = args.get("commodity")
+            if q:
+                d = d[_commodity_mask(d, q)]
+            ser = d.groupby("year")["value_tonnes"].sum()
+            return {"country": c, "commodity": q or "all output",
+                    "trend": [{"year": int(y), "mt": round(v / 1e6, 2)}
+                              for y, v in ser.items()]}
+
+        if name == "country_ranking":
+            yr, n = int(args["year"]), int(args.get("top_n", 15))
+            grp = args.get("group")
+            d = df[df["year"] == yr]
+            if grp in ("Crops", "Livestock & meat"):
+                d = d[d["group"] == grp]
+            agg = d.groupby("country")["value_tonnes"].sum().nlargest(n)
+            return {"year": yr, "group": grp or "all", "ranking": [
+                {"rank": i + 1, "country": k, "mt": round(v / 1e6, 2)}
+                for i, (k, v) in enumerate(agg.items())]}
+
+        return {"error": f"unknown tool {name}"}
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"tool '{name}' failed: {e}"}
 
 
 def answer_question(question: str, context: str,
-                    history: list[dict] | None = None) -> str:
+                    history: list[dict] | None = None,
+                    df: pd.DataFrame | None = None) -> str:
+    """Answer a question, letting the model call data tools when it needs more
+    than the provided context (any country / commodity / year / trend)."""
     messages = [{"role": "system",
                  "content": SYSTEM_PROMPT + "\n\nDATA CONTEXT:\n" + context}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": question})
-    return _chat(messages)
+
+    use_tools = TOOLS if df is not None else None
+    last = {}
+    for _ in range(5):  # allow a few tool round-trips
+        data = _post(messages, tools=use_tools)
+        last = data["choices"][0]["message"]
+        calls = last.get("tool_calls")
+        if not calls:
+            return (last.get("content") or "").strip() or "(no answer)"
+        messages.append(last)  # echo assistant turn (with tool_calls)
+        for tc in calls:
+            fn = tc["function"]["name"]
+            try:
+                a = json.loads(tc["function"].get("arguments") or "{}")
+            except json.JSONDecodeError:
+                a = {}
+            result = _run_tool(df, fn, a)
+            messages.append({"role": "tool", "tool_call_id": tc["id"],
+                             "name": fn, "content": json.dumps(result)})
+    return (last.get("content") or "").strip() or \
+        "I gathered the data but couldn't compose a final answer — try rephrasing."
 
 
 def generate_insights(context: str, country: str) -> str:

@@ -382,7 +382,8 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         with st.spinner("Thinking…"):
             try:
                 ans = A.answer_question(q, qctx,
-                                        st.session_state["chat"][:-1][-6:])
+                                        st.session_state["chat"][:-1][-6:],
+                                        df=df)
             except Exception as e:  # noqa: BLE001
                 ans = f"⚠️ Couldn't reach the assistant: {e}"
         st.session_state["chat"].append({"role": "assistant", "content": ans})

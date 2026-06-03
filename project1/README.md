@@ -147,6 +147,14 @@ answers cite real figures (in million tonnes) for any country, not just the
 selected one. (The full ~770k-row dataset is far too large to send to an LLM,
 so it reasons over this focused summary.)
 
+**Tool calling for the full dataset:** the assistant also has **tools** it can
+call to query the entire dataframe on demand — `country_products`,
+`commodity_top_producers`, `production_trend` (any country/commodity across
+1961–2024), and `country_ranking`. So it can answer deep questions like
+"Japan's rice production trend since 1970" or "rank every country's wheat in
+1985" by actually querying the data, not guessing. All still on Groq's free
+tier (tool calls just use a bit more of your free quota per question).
+
 > **Groq vs Grok:** "Groq" (used here) is a *free* inference service running
 > open models — not "Grok" (xAI's paid model). Easy to mix up!
 
