@@ -807,6 +807,32 @@ def inject_dashboard_css() -> None:
             font-size: 0.92rem;
             margin-top: -0.35rem;
         }
+        .selected-crop-strip {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+            padding: 0.7rem 0.75rem;
+            border: 1px solid rgba(204, 255, 90, 0.2);
+            border-radius: 10px;
+            background: rgba(7, 12, 20, 0.55);
+        }
+        .selected-crop-label {
+            color: var(--lime);
+            font-size: 0.76rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .selected-crop-chip {
+            color: #07100c;
+            padding: 0.42rem 0.68rem;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--lime), var(--green));
+            box-shadow: 0 10px 24px rgba(67, 212, 119, 0.2);
+            font-size: 0.86rem;
+            font-weight: 900;
+        }
         .insight-card {
             min-height: 142px;
             padding: 1rem 1.1rem;
@@ -992,20 +1018,31 @@ def inject_dashboard_css() -> None:
         .st-key-selected_items button[aria-pressed="true"],
         .st-key-selected_items button[aria-selected="true"],
         .st-key-selected_items button[aria-checked="true"],
+        .st-key-selected_items button[kind="primary"],
         .st-key-selected_items [role="button"][aria-pressed="true"],
         .st-key-selected_items [role="button"][aria-selected="true"],
-        .st-key-selected_items [role="button"][aria-checked="true"] {
+        .st-key-selected_items [role="button"][aria-checked="true"],
+        .st-key-selected_items [role="button"][kind="primary"],
+        .st-key-selected_items label:has(input:checked),
+        .st-key-selected_items div:has(> input:checked) {
             color: #07100c !important;
             background: linear-gradient(135deg, var(--lime), var(--green)) !important;
             border-color: transparent !important;
+            box-shadow: 0 10px 24px rgba(67, 212, 119, 0.24) !important;
         }
         .st-key-selected_items button[aria-pressed="true"] *,
         .st-key-selected_items button[aria-selected="true"] *,
         .st-key-selected_items button[aria-checked="true"] *,
+        .st-key-selected_items button[kind="primary"] *,
         .st-key-selected_items [role="button"][aria-pressed="true"] *,
         .st-key-selected_items [role="button"][aria-selected="true"] *,
-        .st-key-selected_items [role="button"][aria-checked="true"] * {
+        .st-key-selected_items [role="button"][aria-checked="true"] *,
+        .st-key-selected_items [role="button"][kind="primary"] *,
+        .st-key-selected_items label:has(input:checked) *,
+        .st-key-selected_items div:has(> input:checked) * {
             color: #07100c !important;
+            opacity: 1 !important;
+            font-weight: 900 !important;
         }
         div[data-testid="stButton"] button,
         div[data-testid="stDownloadButton"] button {
@@ -1401,6 +1438,18 @@ def main() -> None:
             help="Click crops to add or remove them from the map, charts, and rankings.",
         )
         selected_items = [item for item in selected_items if item in available_items] or default_items
+        selected_chips = "".join(
+            f'<span class="selected-crop-chip">{escape(item)}</span>' for item in selected_items
+        )
+        st.markdown(
+            f"""
+            <div class="selected-crop-strip">
+                <span class="selected-crop-label">Selected crops</span>
+                {selected_chips}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     filtered = grouped_country_data[
         grouped_country_data["Item"].isin(selected_items)
