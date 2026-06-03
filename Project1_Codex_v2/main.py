@@ -418,6 +418,8 @@ def build_executive_insights(
     total_latest: float,
     country_totals: pd.DataFrame,
     selected_items: list[str],
+    filtered: pd.DataFrame | None = None,
+    year_range: tuple[int, int] | None = None,
 ) -> list[str]:
     if top_latest.empty:
         return [
@@ -427,27 +429,65 @@ def build_executive_insights(
         ]
 
     leading_crop = top_latest.iloc[0]
+    leading_value = float(leading_crop["Value"])
+    leading_share = (leading_value / total_latest) * 100 if total_latest else 0
     leader_text = (
-        f"{country}'s biggest selected crop in {latest_year} is "
-        f"{leading_crop['Item']} at {format_tonnes(float(leading_crop['Value']))}."
+        f"{leading_crop['Item']} drives {leading_share:.1f}% of {country}'s selected-crop total "
+        f"in {latest_year} ({format_tonnes(leading_value)})."
     )
 
     if country_totals.empty:
         rank_text = "There is not enough country ranking data for the selected year."
     else:
-        top_country = country_totals.iloc[0]
-        rank_text = (
-            f"Globally, {top_country['Area']} leads these selected crops in {latest_year} "
-            f"with {format_tonnes(float(top_country['Value']))}."
+        ranked = country_totals.reset_index(drop=True).copy()
+        ranked["Rank"] = ranked.index + 1
+        country_match = ranked[ranked["Area"].eq(country)]
+        global_total = float(ranked["Value"].sum())
+        if not country_match.empty:
+            row = country_match.iloc[0]
+            country_share = (float(row["Value"]) / global_total) * 100 if global_total else 0
+            rank_text = (
+                f"{country} ranks #{int(row['Rank'])} among the visible countries for these crops, "
+                f"with {country_share:.1f}% of their combined output."
+            )
+        else:
+            top_country = ranked.iloc[0]
+            rank_text = (
+                f"{top_country['Area']} leads the visible country ranking in {latest_year} "
+                f"with {format_tonnes(float(top_country['Value']))}."
+            )
+
+    total_text = build_growth_insight(country, total_latest, filtered, year_range)
+    return [leader_text, rank_text, total_text]
+
+
+def build_growth_insight(
+    country: str,
+    total_latest: float,
+    filtered: pd.DataFrame | None,
+    year_range: tuple[int, int] | None,
+) -> str:
+    if filtered is None or filtered.empty or year_range is None:
+        return f"The selected crops add up to {format_tonnes(total_latest)} for {country}."
+
+    yearly = filtered.groupby("Year", as_index=False)["Value"].sum().sort_values("Year")
+    if len(yearly) < 2:
+        return f"The selected crops add up to {format_tonnes(total_latest)} for {country}."
+
+    start = yearly.iloc[0]
+    end = yearly.iloc[-1]
+    growth = growth_percentage(float(start["Value"]), float(end["Value"]))
+    if growth is None:
+        return (
+            f"Production is {format_tonnes(float(end['Value']))} in {int(end['Year'])}; "
+            f"growth cannot be calculated from a zero starting value."
         )
 
-    crop_count = len(selected_items)
-    crop_word = "crop" if crop_count == 1 else "crops"
-    total_text = (
-        f"Together, the {crop_count} {crop_word} selected add up to "
-        f"{format_tonnes(total_latest)} for {country}."
+    direction = "increased" if growth >= 0 else "decreased"
+    return (
+        f"From {int(start['Year'])} to {int(end['Year'])}, {country}'s selected-crop total "
+        f"{direction} by {growth:+.1f}%."
     )
-    return [leader_text, rank_text, total_text]
 
 
 def build_suggested_questions(
@@ -685,6 +725,8 @@ def main() -> None:
         total_latest=total_latest,
         country_totals=country_totals,
         selected_items=selected_items,
+        filtered=filtered,
+        year_range=year_range,
     )
     insight_cols = st.columns(3)
     for index, insight in enumerate(insights):

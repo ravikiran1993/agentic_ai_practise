@@ -201,7 +201,48 @@ class DashboardDataTests(unittest.TestCase):
         self.assertEqual(len(insights), 3)
         self.assertIn("Rice", insights[0])
         self.assertIn("India", insights[1])
-        self.assertIn("2 crops", insights[2])
+        self.assertIn("200 t", insights[2])
+        self.assertIn("India", insights[2])
+
+    def test_build_executive_insights_uses_rank_share_and_growth(self):
+        top_latest = pd.DataFrame(
+            [
+                {"Item": "Rice", "Value": 160},
+                {"Item": "Wheat", "Value": 40},
+            ]
+        )
+        country_totals = pd.DataFrame(
+            [
+                {"Area": "India", "Value": 1000},
+                {"Area": "Japan", "Value": 200},
+                {"Area": "Brazil", "Value": 100},
+            ]
+        )
+        filtered = pd.DataFrame(
+            [
+                ("India", "Rice", 2020, 100),
+                ("India", "Wheat", 2020, 20),
+                ("India", "Rice", 2024, 160),
+                ("India", "Wheat", 2024, 40),
+            ],
+            columns=["Area", "Item", "Year", "Value"],
+        )
+
+        insights = main.build_executive_insights(
+            country="India",
+            latest_year=2024,
+            top_latest=top_latest,
+            total_latest=200,
+            country_totals=country_totals,
+            selected_items=["Rice", "Wheat"],
+            filtered=filtered,
+            year_range=(2020, 2024),
+        )
+
+        combined = " ".join(insights)
+        self.assertIn("80.0%", combined)
+        self.assertIn("#1", combined)
+        self.assertIn("+66.7%", combined)
 
     def test_build_suggested_questions_uses_selected_context(self):
         questions = main.build_suggested_questions("India", ["Rice", "Wheat"], (2000, 2024))
