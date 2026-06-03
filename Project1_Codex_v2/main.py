@@ -352,6 +352,10 @@ def build_crop_tile_options(data: pd.DataFrame, selected_items: list[str], limit
     return options
 
 
+def default_selection_for_context(data: pd.DataFrame, selected_items: list[str] | None = None) -> list[str]:
+    return build_crop_tile_options(data, selected_items or [], limit=18)
+
+
 def simplify_crop_label(item: str) -> str:
     label = str(item)
     replacements = {
@@ -1439,10 +1443,22 @@ def main() -> None:
         .head(6)
         .index.tolist()
     )
-    if "selected_items" in st.session_state:
+    previous_country = st.session_state.get("_last_country", country)
+    previous_group = st.session_state.get("_last_selected_group", selected_group)
+    selection_context_changed = country != previous_country or selected_group != previous_group
+    if selection_context_changed:
+        selected_items = default_selection_for_context(grouped_country_data)
+        st.session_state["selected_items"] = selected_items
+        st.session_state["_last_country"] = country
+        st.session_state["_last_selected_group"] = selected_group
+    elif "selected_items" in st.session_state:
         selected_items = [item for item in st.session_state["selected_items"] if item in available_items]
     else:
         selected_items = default_items
+    if "_last_country" not in st.session_state:
+        st.session_state["_last_country"] = country
+    if "_last_selected_group" not in st.session_state:
+        st.session_state["_last_selected_group"] = selected_group
 
     min_year = int(data["Year"].min())
     max_year = int(data["Year"].max())
@@ -1504,6 +1520,17 @@ def main() -> None:
             .head(6)
             .index.tolist()
         )
+        previous_country = st.session_state.get("_last_country", country)
+        previous_group = st.session_state.get("_last_selected_group", selected_group)
+        selection_context_changed = country != previous_country or selected_group != previous_group
+        if selection_context_changed:
+            selected_items = default_selection_for_context(grouped_country_data)
+            st.session_state["selected_items"] = selected_items
+        else:
+            selected_items = [item for item in selected_items if item in available_items]
+        st.session_state["_last_country"] = country
+        st.session_state["_last_selected_group"] = selected_group
+
         tile_options = build_crop_tile_options(grouped_country_data, selected_items, limit=18)
         crop_action_cols = st.columns([0.16, 0.18, 0.16, 0.5])
         with crop_action_cols[0]:

@@ -149,6 +149,21 @@ class DashboardDataTests(unittest.TestCase):
 
         self.assertEqual(options, ["Rice", "Wheat", "Barley"])
 
+    def test_default_selection_for_context_selects_visible_group_items_after_clear(self):
+        data = pd.DataFrame(
+            [
+                ("India", "Rice", 2024, 100),
+                ("India", "Wheat", 2024, 80),
+                ("India", "Maize", 2024, 60),
+                ("India", "Barley", 2024, 40),
+            ],
+            columns=["Area", "Item", "Year", "Value"],
+        )
+
+        selected = main.default_selection_for_context(data)
+
+        self.assertEqual(selected, ["Rice", "Wheat", "Maize", "Barley"])
+
     def test_build_country_comparison_summarizes_two_country_crop_trends(self):
         data = pd.DataFrame(
             [
