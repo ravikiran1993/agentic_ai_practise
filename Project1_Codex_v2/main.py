@@ -730,8 +730,15 @@ def inject_dashboard_css() -> None:
         }
         div[data-testid="stWidgetLabel"] label,
         div[data-testid="stWidgetLabel"] p {
+            color: #f5f7ef !important;
+            font-weight: 850 !important;
+            opacity: 1 !important;
+        }
+        label,
+        label p,
+        [data-testid="stMarkdownContainer"] p {
             color: #dfe6d8;
-            font-weight: 800;
+            opacity: 1;
         }
         div[data-testid="stVerticalBlock"] {
             gap: 0.7rem;
@@ -843,14 +850,15 @@ def inject_dashboard_css() -> None:
         div[data-baseweb="select"] > div,
         div[data-testid="stTextArea"] textarea,
         div[data-testid="stTextInput"] input {
-            color: var(--text);
-            background: rgba(7, 12, 20, 0.62);
-            border-color: rgba(156, 176, 204, 0.26);
+            color: var(--text) !important;
+            background: rgba(7, 12, 20, 0.82) !important;
+            border-color: rgba(156, 176, 204, 0.42) !important;
             border-radius: 8px;
         }
         div[data-baseweb="select"] span,
         div[data-baseweb="select"] div {
-            color: var(--text);
+            color: var(--text) !important;
+            opacity: 1 !important;
         }
         div[data-baseweb="popover"] {
             background: #111827;
@@ -869,19 +877,55 @@ def inject_dashboard_css() -> None:
             color: var(--muted);
         }
         div[data-testid="stSlider"] {
-            color: var(--text);
+            color: var(--text) !important;
         }
         div[data-testid="stSlider"] [role="slider"] {
             border-color: var(--lime);
             background: var(--lime);
         }
         div[data-testid="stSlider"] [data-testid="stTickBar"] {
-            color: #dfe6d8;
+            color: #dfe6d8 !important;
         }
         div[data-testid="stSlider"] [data-testid="stThumbValue"],
         div[data-testid="stSlider"] [data-testid="stTickBar"] div {
-            color: var(--lime);
-            font-weight: 850;
+            color: var(--lime) !important;
+            font-weight: 850 !important;
+            opacity: 1 !important;
+        }
+        .st-key-selected_group {
+            background: rgba(7, 12, 20, 0.56);
+            border: 1px solid rgba(156, 176, 204, 0.3);
+            border-radius: 10px;
+            padding: 0.18rem;
+        }
+        .st-key-selected_group button,
+        .st-key-selected_group [role="button"] {
+            color: #f5f7ef !important;
+            background: #111827 !important;
+            border-color: rgba(156, 176, 204, 0.34) !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+        }
+        .st-key-selected_group button p,
+        .st-key-selected_group [role="button"] p,
+        .st-key-selected_group button span,
+        .st-key-selected_group [role="button"] span {
+            color: #f5f7ef !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+        }
+        .st-key-selected_group button[aria-pressed="true"],
+        .st-key-selected_group [role="button"][aria-pressed="true"] {
+            color: #07100c !important;
+            background: linear-gradient(135deg, var(--lime), var(--green)) !important;
+            border-color: transparent !important;
+        }
+        .st-key-selected_group button[aria-pressed="true"] p,
+        .st-key-selected_group [role="button"][aria-pressed="true"] p,
+        .st-key-selected_group button[aria-pressed="true"] span,
+        .st-key-selected_group [role="button"][aria-pressed="true"] span {
+            color: #07100c !important;
         }
         div[data-testid="stSegmentedControl"] {
             background: rgba(7, 12, 20, 0.72);
@@ -890,35 +934,35 @@ def inject_dashboard_css() -> None:
             padding: 0.12rem;
         }
         div[data-testid="stSegmentedControl"] button {
-            color: #dfe6d8;
-            background: rgba(17, 24, 39, 0.86);
-            border-color: rgba(156, 176, 204, 0.22);
-            font-weight: 850;
+            color: #f5f7ef !important;
+            background: #111827 !important;
+            border-color: rgba(156, 176, 204, 0.34) !important;
+            font-weight: 850 !important;
         }
         div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
         div[data-testid="stSegmentedControl"] button[data-selected="true"] {
-            color: #07100c;
-            background: linear-gradient(135deg, var(--lime), var(--green));
-            border-color: transparent;
+            color: #07100c !important;
+            background: linear-gradient(135deg, var(--lime), var(--green)) !important;
+            border-color: transparent !important;
         }
         div[data-testid="stSegmentedControl"] button p {
-            color: inherit;
-            font-weight: inherit;
+            color: inherit !important;
+            font-weight: inherit !important;
         }
         div[data-testid="stPills"] button {
-            color: #dfe6d8;
-            background: rgba(17, 24, 39, 0.82);
-            border: 1px solid rgba(156, 176, 204, 0.28);
-            font-weight: 800;
+            color: #f5f7ef !important;
+            background: #111827 !important;
+            border: 1px solid rgba(156, 176, 204, 0.34) !important;
+            font-weight: 800 !important;
         }
         div[data-testid="stPills"] button[aria-pressed="true"],
         div[data-testid="stPills"] button[data-selected="true"] {
-            color: #07100c;
-            background: linear-gradient(135deg, var(--lime), var(--green));
-            border-color: transparent;
+            color: #07100c !important;
+            background: linear-gradient(135deg, var(--lime), var(--green)) !important;
+            border-color: transparent !important;
         }
         div[data-testid="stPills"] button p {
-            color: inherit;
+            color: inherit !important;
         }
         div[data-testid="stButton"] button,
         div[data-testid="stDownloadButton"] button {
