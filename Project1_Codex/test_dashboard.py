@@ -120,6 +120,20 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn("Rice", context)
         self.assertIn("9.8K t", context)
 
+    def test_summarize_filter_state_is_compact_and_plain_english(self):
+        summary = main.summarize_filter_state(
+            country="Japan",
+            selected_group="Cereals",
+            selected_items=["Rice", "Wheat", "Maize"],
+            year_range=(2000, 2024),
+            is_live=True,
+        )
+
+        self.assertIn("Japan", summary)
+        self.assertIn("3 crops", summary)
+        self.assertIn("2000-2024", summary)
+        self.assertIn("FAOSTAT live", summary)
+
 
 if __name__ == "__main__":
     unittest.main()

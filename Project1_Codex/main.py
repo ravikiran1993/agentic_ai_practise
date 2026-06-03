@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from html import escape
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -321,8 +322,81 @@ def get_secret_value(name: str, default: str = "") -> str:
     return str(value or os.getenv(name, default))
 
 
+def summarize_filter_state(
+    country: str,
+    selected_group: str,
+    selected_items: list[str],
+    year_range: tuple[int, int],
+    is_live: bool,
+) -> str:
+    crop_label = f"{len(selected_items)} crop" if len(selected_items) == 1 else f"{len(selected_items)} crops"
+    data_label = "FAOSTAT live" if is_live else "fallback data"
+    return f"{country} | {selected_group} | {crop_label} | {year_range[0]}-{year_range[1]} | {data_label}"
+
+
+def inject_dashboard_css() -> None:
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 1.8rem;
+            padding-bottom: 2rem;
+            max-width: 1500px;
+        }
+        h1 {
+            margin-bottom: 0.15rem;
+            letter-spacing: 0;
+        }
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.7rem;
+        }
+        div[data-testid="stMetric"] {
+            background: #ffffff;
+            border: 1px solid #e7e2d5;
+            border-radius: 8px;
+            padding: 0.8rem 0.9rem;
+            box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+        }
+        .view-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.75rem 0.9rem;
+            border: 1px solid #e7e2d5;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+        .view-label {
+            color: #77746b;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.15rem;
+        }
+        .view-summary {
+            font-size: 1rem;
+            color: #2f302c;
+            font-weight: 600;
+        }
+        .section-note {
+            color: #77746b;
+            font-size: 0.92rem;
+            margin-top: -0.35rem;
+        }
+        div[data-testid="stTabs"] button {
+            font-weight: 600;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     data, is_live, source_note = load_faostat_qcl()
+
+    inject_dashboard_css()
 
     st.title("What Countries Grow Across the Years")
     st.caption(
@@ -334,39 +408,88 @@ def main() -> None:
         st.error("No country data is available. Try refreshing the app.")
         st.stop()
 
-    with st.container(border=True):
-        st.subheader("Filter Controls")
-        country_col, group_col, crop_col = st.columns([1, 1, 2])
-        default_country = "United Kingdom" if "United Kingdom" in countries else countries[0]
-        with country_col:
+    default_country = "United Kingdom" if "United Kingdom" in countries else countries[0]
+    country = st.session_state.get("country", default_country)
+    country_data = data[data["Area"].eq(country)]
+    items = sorted(country_data["Item"].dropna().unique())
+    selected_group = st.session_state.get("selected_group", "All crops")
+    group_choices = group_options(items)
+    if selected_group not in group_choices:
+        selected_group = "All crops"
+    grouped_country_data = apply_group_filter(country_data, selected_group)
+    available_items = sorted(grouped_country_data["Item"].dropna().unique())
+    default_items = (
+        grouped_country_data.groupby("Item")["Value"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(6)
+        .index.tolist()
+    )
+    selected_items = st.session_state.get("selected_items", default_items)
+    selected_items = [item for item in selected_items if item in available_items] or default_items
+
+    min_year = int(data["Year"].min())
+    max_year = int(data["Year"].max())
+    year_range = st.session_state.get("year_range", (max(min_year, max_year - 20), max_year))
+    map_year = year_range[1]
+
+    view_summary = summarize_filter_state(country, selected_group, selected_items, year_range, is_live)
+    view_col, action_col = st.columns([5, 1])
+    with view_col:
+        st.markdown(
+            f"""
+            <div class="view-bar">
+                <div>
+                    <div class="view-label">Current view</div>
+                    <div class="view-summary">{escape(view_summary)}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with action_col:
+        with st.popover("Refine view", width="stretch"):
             country = st.selectbox(
                 "Country",
                 countries,
-                index=countries.index(default_country),
-                help=f"{len(countries):,} countries, territories, and FAOSTAT regional groups loaded.",
+                index=countries.index(country) if country in countries else countries.index(default_country),
+                key="country",
+                help=f"{len(countries):,} countries and FAOSTAT areas loaded.",
             )
-
-        country_data = data[data["Area"].eq(country)]
-        items = sorted(country_data["Item"].dropna().unique())
-        with group_col:
-            selected_group = st.selectbox("Crop group", group_options(items))
-        grouped_country_data = apply_group_filter(country_data, selected_group)
-
-        available_items = sorted(grouped_country_data["Item"].dropna().unique())
-        default_items = (
-            grouped_country_data.groupby("Item")["Value"]
-            .sum()
-            .sort_values(ascending=False)
-            .head(6)
-            .index.tolist()
-        )
-        with crop_col:
-            selected_items = st.multiselect("Crops", available_items, default=default_items)
-
-        min_year = int(data["Year"].min())
-        max_year = int(data["Year"].max())
-        year_range = st.slider("Year range", min_year, max_year, (max(min_year, max_year - 20), max_year))
-        map_year = year_range[1]
+            country_data = data[data["Area"].eq(country)]
+            items = sorted(country_data["Item"].dropna().unique())
+            group_choices = group_options(items)
+            if selected_group not in group_choices:
+                selected_group = "All crops"
+            selected_group = st.selectbox(
+                "Crop group",
+                group_choices,
+                index=group_choices.index(selected_group),
+                key="selected_group",
+            )
+            grouped_country_data = apply_group_filter(country_data, selected_group)
+            available_items = sorted(grouped_country_data["Item"].dropna().unique())
+            default_items = (
+                grouped_country_data.groupby("Item")["Value"]
+                .sum()
+                .sort_values(ascending=False)
+                .head(6)
+                .index.tolist()
+            )
+            selected_items = st.multiselect(
+                "Crops",
+                available_items,
+                default=[item for item in selected_items if item in available_items] or default_items,
+                key="selected_items",
+            )
+            year_range = st.slider(
+                "Year range",
+                min_year,
+                max_year,
+                year_range,
+                key="year_range",
+            )
+            map_year = year_range[1]
 
     filtered = grouped_country_data[
         grouped_country_data["Item"].isin(selected_items)
@@ -390,17 +513,17 @@ def main() -> None:
         .head(20)
     )
 
-    overview_tab, map_tab, trends_tab, countries_tab, assistant_tab = st.tabs(
-        ["Overview", "World Map", "Trends", "Countries", "AI Assistant"]
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Country", country)
+    metric_cols[1].metric("Crops", len(selected_items))
+    metric_cols[2].metric(f"Total in {latest_year}", format_tonnes(total_latest))
+    metric_cols[3].metric("Data source", "FAOSTAT live" if is_live else "Fallback")
+
+    map_tab, overview_tab, trends_tab, countries_tab, assistant_tab = st.tabs(
+        ["World Map", "Overview", "Trends", "Countries", "AI Assistant"]
     )
 
     with overview_tab:
-        metric_cols = st.columns(4)
-        metric_cols[0].metric("Country", country)
-        metric_cols[1].metric("Selected crops", len(selected_items))
-        metric_cols[2].metric(f"Total in {latest_year}", format_tonnes(total_latest))
-        metric_cols[3].metric("Data source", "FAOSTAT live" if is_live else "Fallback")
-
         summary_col, table_col = st.columns([2, 1])
         with summary_col:
             st.subheader("Snapshot")
@@ -426,8 +549,12 @@ def main() -> None:
 
     with map_tab:
         st.subheader(f"Top Selected Crop by Country, {map_year}")
+        st.markdown(
+            "<div class=\"section-note\">Each country is colored by the biggest selected crop it grows in the final year of your range.</div>",
+            unsafe_allow_html=True,
+        )
         if map_data.empty:
-            st.info("No map data for the selected crops and comparison year.")
+            st.info("No map data for the selected crops and selected end year.")
         else:
             fig = px.choropleth(
                 map_data,
@@ -470,7 +597,7 @@ def main() -> None:
     with countries_tab:
         st.subheader(f"Top Producing Countries, {map_year}")
         if country_totals.empty:
-            st.info("No comparison data for the selected crops and year.")
+            st.info("No country ranking data for the selected crops and selected end year.")
         else:
             fig = px.bar(
                 country_totals,
