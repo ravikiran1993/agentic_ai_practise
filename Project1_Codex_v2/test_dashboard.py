@@ -268,6 +268,17 @@ class DashboardDataTests(unittest.TestCase):
             ],
         )
 
+    def test_parse_llm_insights_skips_intro_text(self):
+        parsed = main.parse_llm_insights(
+            "Here are three concise executive insights:\n\n"
+            "1. Potatoes account for nearly half of output.\n"
+            "2. India ranks ninth among visible countries.\n"
+            "3. Growth is concentrated in one crop."
+        )
+
+        self.assertEqual(parsed[0], "Potatoes account for nearly half of output.")
+        self.assertNotIn("Here are", parsed[0])
+
     def test_generate_llm_insights_returns_fallback_without_key(self):
         fallback = ["fallback one", "fallback two", "fallback three"]
 

@@ -540,10 +540,26 @@ def build_insight_facts(
 
 
 def parse_llm_insights(content: str) -> list[str]:
+    numbered_insights = []
+    for line in content.splitlines():
+        match = re.match(r"^\s*\d+[\.)]\s+(.+)$", line.strip())
+        if match:
+            cleaned = match.group(1).strip()
+            if cleaned:
+                numbered_insights.append(cleaned)
+        if len(numbered_insights) == 3:
+            return numbered_insights
+
     insights = []
     for line in content.splitlines():
         cleaned = re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip()
-        if cleaned:
+        lowered = cleaned.casefold()
+        is_heading = (
+            lowered.startswith("here are")
+            or lowered in {"executive insights:", "insights:", "three insights:"}
+            or ("insight" in lowered and cleaned.endswith(":"))
+        )
+        if cleaned and not is_heading:
             insights.append(cleaned)
         if len(insights) == 3:
             break
@@ -567,6 +583,8 @@ def generate_llm_insights(
                 "content": (
                     "You are a senior analytics storyteller for an agriculture dashboard. "
                     "Write exactly three concise, plain-English executive insights. "
+                    "Return only a numbered list with items 1, 2, and 3. "
+                    "Do not write an introduction, title, heading, summary, or sign-off. "
                     "Use only the supplied facts. Do not invent numbers. "
                     "Each insight must explain why the number matters, not just repeat it."
                 ),
