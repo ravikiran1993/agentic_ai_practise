@@ -152,13 +152,13 @@ class DashboardDataTests(unittest.TestCase):
             country="Japan",
             selected_group="Cereals",
             selected_items=["Rice", "Wheat", "Maize"],
-            year_range=(2000, 2024),
+            year=2024,
             is_live=True,
         )
 
         self.assertIn("Japan", summary)
         self.assertIn("3 crops", summary)
-        self.assertIn("2000-2024", summary)
+        self.assertIn("2024", summary)
         self.assertNotIn("FAOSTAT live", summary)
 
     def test_build_crop_tile_options_keeps_selected_items_and_top_crops(self):

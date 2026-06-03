@@ -432,11 +432,11 @@ def summarize_filter_state(
     country: str,
     selected_group: str,
     selected_items: list[str],
-    year_range: tuple[int, int],
+    year: int,
     is_live: bool,
 ) -> str:
     crop_label = f"{len(selected_items)} crop" if len(selected_items) == 1 else f"{len(selected_items)} crops"
-    return f"{country} | {selected_group} | {crop_label} | {year_range[0]}-{year_range[1]}"
+    return f"{country} | {selected_group} | {crop_label} | {year}"
 
 
 def build_crop_tile_options(data: pd.DataFrame, selected_items: list[str], limit: int = 18) -> list[str]:
@@ -1634,10 +1634,14 @@ def main() -> None:
 
     min_year = int(data["Year"].min())
     max_year = int(data["Year"].max())
-    year_range = st.session_state.get("year_range", (max(min_year, max_year - 20), max_year))
-    map_year = year_range[1]
+    focus_year = min(max(int(st.session_state.get("focus_year", max_year)), min_year), max_year)
+    map_year = focus_year
+    # The single-year slider only drives the map, rankings, and insights. Trend and
+    # country-comparison charts always use the full available history.
+    full_range = (min_year, max_year)
+    insight_range = (min_year, focus_year)
 
-    view_summary = summarize_filter_state(country, selected_group, selected_items, year_range, is_live)
+    view_summary = summarize_filter_state(country, selected_group, selected_items, focus_year, is_live)
     st.markdown(
         f"""
         <div class="view-bar">
@@ -1661,14 +1665,16 @@ def main() -> None:
                 help=f"{len(countries):,} countries and FAOSTAT areas loaded.",
             )
         with year_col:
-            year_range = st.slider(
-                "Year range",
+            focus_year = st.slider(
+                "Year",
                 min_year,
                 max_year,
-                year_range,
-                key="year_range",
+                focus_year,
+                key="focus_year",
+                help="Pick the year shown on the map, rankings, and insights. Trend charts always show the full history.",
             )
-            map_year = year_range[1]
+            map_year = focus_year
+            insight_range = (min_year, focus_year)
 
         country_data = data[data["Area"].eq(country)]
         items = sorted(country_data["Item"].dropna().unique())
@@ -1750,12 +1756,16 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
+    # Insight/overview/metric scope: history up to the focus year (so growth is
+    # measured from the start of the record to the year the user picked).
     filtered = grouped_country_data[
         grouped_country_data["Item"].isin(selected_items)
-        & grouped_country_data["Year"].between(year_range[0], year_range[1])
+        & grouped_country_data["Year"].between(insight_range[0], insight_range[1])
     ]
+    # Trend chart scope: the full available history, independent of the focus year.
+    trend_filtered = grouped_country_data[grouped_country_data["Item"].isin(selected_items)]
 
-    latest_year = int(filtered["Year"].max()) if not filtered.empty else map_year
+    latest_year = focus_year
     latest = filtered[filtered["Year"].eq(latest_year)]
     top_latest = latest.groupby("Item", as_index=False)["Value"].sum().sort_values("Value", ascending=False)
     total_latest = float(top_latest["Value"].sum()) if not top_latest.empty else 0
@@ -1786,14 +1796,14 @@ def main() -> None:
         country_totals=country_totals,
         selected_items=selected_items,
         filtered=filtered,
-        year_range=year_range,
+        year_range=insight_range,
     )
     # Streamlit reruns the whole script on every widget interaction (slider drag,
     # tab switch, crop click). Calling the LLM here unconditionally would fire a
     # request per rerun and blow past the free-tier rate limit almost immediately.
     # So only regenerate insights when the country/crops/year-range actually change;
     # otherwise reuse the cached result for this view.
-    insight_signature = (country, tuple(selected_items), tuple(year_range))
+    insight_signature = (country, tuple(selected_items), focus_year)
     if (
         st.session_state.get("insight_signature") == insight_signature
         and st.session_state.get("insights")
@@ -1824,7 +1834,7 @@ def main() -> None:
         data=data,
         country=country,
         selected_items=selected_items,
-        year_range=year_range,
+        year_range=full_range,
         map_year=map_year,
         source_note=source_note,
         providers=providers,
@@ -1864,11 +1874,11 @@ def main() -> None:
     with map_tab:
         st.subheader(f"Top Selected Crop by Country, {map_year}")
         st.markdown(
-            "<div class=\"section-note\">Each country is colored by the biggest selected crop it grows in the final year of your range.</div>",
+            "<div class=\"section-note\">Each country is colored by the biggest selected crop it grows in the selected year.</div>",
             unsafe_allow_html=True,
         )
         if map_data.empty:
-            st.info("No map data for the selected crops and selected end year.")
+            st.info("No map data for the selected crops and selected year.")
         else:
             map_plot_data = map_data.assign(Crop=map_data["Item"].map(format_crop_option))
             fig = px.choropleth(
@@ -1906,10 +1916,14 @@ def main() -> None:
 
     with trends_tab:
         st.subheader(f"{country} Crop Production Trends")
-        if filtered.empty:
+        st.markdown(
+            f"<div class=\"section-note\">Full history ({min_year}–{max_year}); not limited to the selected year.</div>",
+            unsafe_allow_html=True,
+        )
+        if trend_filtered.empty:
             st.info("No data for the current filters.")
         else:
-            trend_plot_data = filtered.assign(Crop=filtered["Item"].map(format_crop_option))
+            trend_plot_data = trend_filtered.assign(Crop=trend_filtered["Item"].map(format_crop_option))
             fig = px.line(
                 trend_plot_data,
                 x="Year",
@@ -1969,7 +1983,7 @@ def main() -> None:
                 st.info("These two countries do not share crop data in this dataset.")
 
         if compare_crop:
-            comparison_result = build_country_comparison(data, country_a, country_b, compare_crop, year_range)
+            comparison_result = build_country_comparison(data, country_a, country_b, compare_crop, full_range)
             compare_data = comparison_result["data"]
             leaders = comparison_result["leaders"]
             if compare_data.empty or len(leaders) < 2:
@@ -2014,7 +2028,7 @@ def main() -> None:
     with countries_tab:
         st.subheader(f"Top Producing Countries, {map_year}")
         if country_totals.empty:
-            st.info("No country ranking data for the selected crops and selected end year.")
+            st.info("No country ranking data for the selected crops and selected year.")
         else:
             fig = px.bar(
                 country_totals,
