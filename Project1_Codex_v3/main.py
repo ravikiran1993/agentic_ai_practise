@@ -1510,6 +1510,14 @@ def render_floating_assistant(
             help="Move the plant assistant up or down the left edge without covering the dashboard header.",
         )
 
+        # A previous ask flagged the input for reset. Clear the widget-backed state
+        # here, BEFORE those widgets are instantiated this run (clearing a widget key
+        # after instantiation raises in Streamlit).
+        if st.session_state.pop("assistant_reset", False):
+            st.session_state["floating_suggested_question"] = None
+            st.session_state["floating_ai_question"] = ""
+            st.session_state["floating_last_suggestion"] = None
+
         suggested_questions = build_suggested_questions(country, selected_items, year_range)
         suggestion = st.pills(
             "Try asking",
@@ -1523,14 +1531,21 @@ def render_floating_assistant(
             st.session_state["floating_last_suggestion"] = suggestion
             st.rerun()
 
-        question = st.text_area(
-            "Question",
-            key="floating_ai_question",
-            placeholder="Example: Is Japan growing more rice compared with India?",
-            height=92,
-        )
+        # Use a form so the question is captured atomically on submit and the input
+        # clears for the next question. The text area is seeded with value= from a
+        # plain session var (not bound by key), which avoids the Streamlit
+        # "value set via Session State after widget instantiation" conflict that
+        # previously left the box empty and blocked asking a second question.
+        with st.form("floating_ai_form", clear_on_submit=True):
+            question = st.text_area(
+                "Question",
+                value=st.session_state.get("floating_ai_question", ""),
+                placeholder="Example: Is Japan growing more rice compared with India?",
+                height=92,
+            )
+            submitted = st.form_submit_button("Ask Assistant", type="primary")
 
-        if st.button("Ask Assistant", type="primary", key="floating_ai_submit"):
+        if submitted:
             if not question.strip():
                 st.warning("Enter a question first.")
             elif not providers:
@@ -1545,6 +1560,7 @@ def render_floating_assistant(
                     source_note=source_note,
                     question=question,
                 )
+                answered = False
                 with st.spinner("Asking assistant..."):
                     try:
                         st.session_state["floating_ai_answer"] = ask_assistant(
@@ -1552,10 +1568,16 @@ def render_floating_assistant(
                             context,
                             providers,
                         )
+                        answered = True
                     except requests.HTTPError as exc:
                         st.error(friendly_ai_error(exc))
                     except Exception as exc:
                         st.error(f"AI assistant failed: {exc}")
+                if answered:
+                    # Clear the box and the selected pill on the next run so the
+                    # next question starts fresh; the answer below persists.
+                    st.session_state["assistant_reset"] = True
+                    st.rerun()
 
         if st.session_state.get("floating_ai_answer"):
             st.markdown(st.session_state["floating_ai_answer"])
