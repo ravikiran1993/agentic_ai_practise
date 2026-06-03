@@ -1,0 +1,9 @@
+# Earthy "agriculture" theme for the food-production dashboard (project1).
+# Placed at the repo root so Streamlit Community Cloud (which runs from the
+# repo root) picks it up; a copy also lives in project1/.streamlit for local runs.
+[theme]
+primaryColor = "#4C9F38"
+backgroundColor = "#FBFAF4"
+secondaryBackgroundColor = "#EFEAD9"
+textColor = "#2C2A24"
+font = "sans serif"

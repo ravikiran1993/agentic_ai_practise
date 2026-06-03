@@ -1,0 +1,7 @@
+# Earthy "agriculture" theme for the food-production dashboard.
+[theme]
+primaryColor = "#4C9F38"
+backgroundColor = "#FBFAF4"
+secondaryBackgroundColor = "#EFEAD9"
+textColor = "#2C2A24"
+font = "sans serif"

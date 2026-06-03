@@ -136,10 +136,16 @@ def make_map(frames: pd.DataFrame, choice: str, mode: str) -> "px.Figure":
         hovertemplate="<b>%{hovertext}</b><br>%{customdata[0]}<extra></extra>"
     )
     fig.update_layout(
-        height=620,
-        margin=dict(l=0, r=0, t=40, b=0),
+        height=660,
+        margin=dict(l=0, r=0, t=46, b=0),
         legend_title_text=legend_title,
-        geo=dict(showframe=False, showcoastlines=False),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        title_font=dict(size=18),
+        legend=dict(bgcolor="rgba(255,255,255,0.6)", borderwidth=0),
+        geo=dict(showframe=False, showcoastlines=False, showland=True,
+                 landcolor="#E9E4D6", bgcolor="rgba(0,0,0,0)",
+                 lakecolor="rgba(0,0,0,0)"),
     )
     # Make the animation a touch slower so it's readable in a live demo.
     if fig.layout.updatemenus:
@@ -149,13 +155,96 @@ def make_map(frames: pd.DataFrame, choice: str, mode: str) -> "px.Figure":
     return fig
 
 
+HERO_HTML = """
+<div style="padding:1.1rem 1.4rem;border-radius:14px;margin-bottom:1rem;
+ background:linear-gradient(135deg,#3D7A2A 0%,#6FA84B 55%,#B7C96B 100%);
+ box-shadow:0 4px 14px rgba(0,0,0,0.10);">
+  <div style="font-size:1.85rem;font-weight:800;color:#FFFFFF;line-height:1.15;">
+    🌍 What the World Grows &amp; Raises
+  </div>
+  <div style="font-size:1.0rem;color:#F3F6EC;margin-top:.3rem;">
+    Top agricultural products by country &amp; year — UN FAOSTAT, 1961–2024
+  </div>
+</div>
+"""
+
+FOOTER_HTML = """
+<hr style="margin-top:2rem;border:none;border-top:1px solid #DDD8C8;">
+<div style="font-size:0.82rem;color:#7A7568;text-align:center;padding:.3rem 0;">
+  Data: UN FAO — FAOSTAT (Production: Crops and livestock products) ·
+  <a href="https://agenticaipractise-tbqheenguqz7cwbxdps6vf.streamlit.app/"
+     target="_blank">Live app</a> ·
+  <a href="https://github.com/ravikiran1993/agentic_ai_practise/tree/main/project1"
+     target="_blank">GitHub</a>
+</div>
+"""
+
+
+def render_country_tab(df: pd.DataFrame, country: str, year: int,
+                       group_choice: str, top_n: int) -> None:
+    cdf = filter_products(df[df["country"] == country], group_choice).copy()
+    cdf["color"] = color_field(cdf, group_choice)
+    cmap, order, legend_title = color_spec(group_choice)
+    if group_choice != FILTER_ALL:
+        st.caption(f"Filtered to **{group_choice}** (matches the map).")
+
+    yslice = cdf[cdf["year"] == year]
+    if yslice.empty:
+        st.info(f"No data for {country} in {year} with this filter.")
+        return
+
+    # ---- KPI metric cards ----
+    total_mt = yslice["value_tonnes"].sum() / 1e6
+    top_row = yslice.nlargest(1, "value_tonnes").iloc[0]
+    top_name = top_row["item"].split(",")[0]
+    gall = filter_products(df[df["year"] == year], group_choice)
+    totals = gall.groupby("country")["value_tonnes"].sum().sort_values(
+        ascending=False)
+    rank = list(totals.index).index(country) + 1 if country in totals else None
+    top5_share = (yslice.nlargest(5, "value_tonnes")["value_tonnes"].sum()
+                  / yslice["value_tonnes"].sum() * 100)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric(f"Total output · {year}", f"{total_mt:,.0f} Mt")
+    k2.metric("#1 product (Mt)", f"{top_row['value_tonnes'] / 1e6:,.1f}")
+    k2.caption(f"🥇 {top_name}")
+    k3.metric("Global rank", f"#{rank} of {len(totals)}" if rank else "—")
+    k4.metric("Top-5 share", f"{top5_share:.0f}%",
+              help="Share of this country's output that comes from its top 5 "
+                   "products.")
+
+    # ---- Top-products bar ----
+    ytop = (yslice.nlargest(top_n, "value_tonnes")
+            .sort_values("value_tonnes").assign(Mt=lambda d: d["value_tonnes"] / 1e6))
+    bar = px.bar(
+        ytop, x="Mt", y="item", color="color", orientation="h",
+        color_discrete_map=cmap, category_orders={"color": order},
+        title=f"{country} — top {len(ytop)} products in {year} (million tonnes)",
+    )
+    bar.update_layout(height=380, margin=dict(l=0, r=0, t=44, b=0),
+                      yaxis_title="", xaxis_title="Million tonnes",
+                      legend_title_text=legend_title,
+                      paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(bar, use_container_width=True)
+
+    # ---- Category/crop mix over time ----
+    mix = cdf.groupby(["year", "color"], as_index=False)["value_tonnes"].sum()
+    mix["Mt"] = mix["value_tonnes"] / 1e6
+    area = px.area(
+        mix, x="year", y="Mt", color="color",
+        color_discrete_map=cmap, category_orders={"color": order},
+        title=f"{country} — production by {legend_title.lower()} over time (Mt)",
+    )
+    area.update_layout(height=360, margin=dict(l=0, r=0, t=44, b=0),
+                       xaxis_title="", yaxis_title="Million tonnes",
+                       legend_title_text=legend_title,
+                       paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(area, use_container_width=True)
+
+
 def main() -> None:
     df = load_data()
-    st.title("🌍 What the world grows & raises, 1961–2024")
-    st.caption(
-        "Top agricultural products by country and year — FAOSTAT production "
-        "(tonnes). Colour = product category."
-    )
+    st.markdown(HERO_HTML, unsafe_allow_html=True)
 
     if df.empty:
         st.error(
@@ -166,7 +255,7 @@ def main() -> None:
 
     # ---- Sidebar controls ----
     with st.sidebar:
-        st.header("Controls")
+        st.header("🗺️ Map controls")
         mode = st.radio(
             "Colour the map by",
             ["Top product", "Dominant category"],
@@ -183,75 +272,40 @@ def main() -> None:
                  "• **Meat only** drops milk & eggs so beef / poultry / pork "
                  "actually surface.",
         )
-        top_n = st.slider("Top-N per country (for hover & dominance)",
-                          1, 10, 5)
+        top_n = st.slider("Top-N per country", 1, 10, 5,
+                          help="How many products feed the hover list, the "
+                               "dominance calc, and the country bar chart.")
         st.divider()
-        with st.expander("ℹ️ About the data & method"):
-            st.markdown(METHOD_NOTES)
-
-    frames = build_frames(group_choice, top_n, mode)
-
-    # ---- Map ----
-    st.plotly_chart(make_map(frames, group_choice, mode),
-                    use_container_width=True)
-    st.caption(
-        "Drag the slider or press ▶ to animate across years. Hover a country "
-        "for its ranked top products. Source: FAOSTAT, UN FAO "
-        "(Production: Crops and livestock products)."
-    )
-
-    # ---- Country drill-down ----
-    st.subheader("🔎 Country drill-down")
-    if group_choice != FILTER_ALL:
-        st.caption(f"Filtered to **{group_choice}** (matches the map above).")
-    countries = sorted(df["country"].unique())
-    default = countries.index("India") if "India" in countries else 0
-    col1, col2 = st.columns([1, 3])
-    with col1:
+        st.header("🔎 Country focus")
+        st.caption("Drives the Country deep-dive & Ask AI tabs.")
+        countries = sorted(df["country"].unique())
+        default = countries.index("India") if "India" in countries else 0
         country = st.selectbox("Country", countries, index=default)
-        year = st.slider("Year", int(df.year.min()), int(df.year.max()),
+        year = st.slider("Focus year", int(df.year.min()), int(df.year.max()),
                          int(df.year.max()))
-    # Honour the same product filter as the map so the two views agree.
-    cdf = filter_products(df[df["country"] == country], group_choice).copy()
-    cdf["color"] = color_field(cdf, group_choice)
-    cmap, order, legend_title = color_spec(group_choice)
 
-    with col2:
-        ytop = (cdf[cdf["year"] == year].nlargest(top_n, "value_tonnes")
-                .sort_values("value_tonnes"))
-        if ytop.empty:
-            st.info("No data for this country/year.")
-        else:
-            ytop = ytop.assign(Mt=ytop["value_tonnes"] / 1e6)
-            bar = px.bar(
-                ytop, x="Mt", y="item", color="color", orientation="h",
-                color_discrete_map=cmap,
-                category_orders={"color": order},
-                title=f"{country} — top {top_n} products in {year} (million tonnes)",
-            )
-            bar.update_layout(height=380, margin=dict(l=0, r=0, t=40, b=0),
-                              yaxis_title="", xaxis_title="Million tonnes",
-                              legend_title_text=legend_title)
-            st.plotly_chart(bar, use_container_width=True)
+    tab_map, tab_country, tab_ai, tab_about = st.tabs(
+        ["🗺️ World map", "🔎 Country deep-dive", "🤖 Ask AI", "ℹ️ About"])
 
-    # Mix over time for the selected country (by the same colour dimension).
-    mix = (cdf.groupby(["year", "color"], as_index=False)["value_tonnes"]
-           .sum())
-    mix["Mt"] = mix["value_tonnes"] / 1e6
-    area = px.area(
-        mix, x="year", y="Mt", color="color",
-        color_discrete_map=cmap,
-        category_orders={"color": order},
-        title=f"{country} — production by {legend_title.lower()} over time (million tonnes)",
-    )
-    area.update_layout(height=360, margin=dict(l=0, r=0, t=40, b=0),
-                       xaxis_title="", yaxis_title="Million tonnes",
-                       legend_title_text=legend_title)
-    st.plotly_chart(area, use_container_width=True)
+    with tab_map:
+        frames = build_frames(group_choice, top_n, mode)
+        st.plotly_chart(make_map(frames, group_choice, mode),
+                        use_container_width=True)
+        st.caption(
+            "Drag the slider or press ▶ to animate across years. Hover a "
+            "country for its ranked top products."
+        )
 
-    # ---- AI data assistant (Groq) ----
-    st.divider()
-    render_assistant(df, country, year, top_n)
+    with tab_country:
+        render_country_tab(df, country, year, group_choice, top_n)
+
+    with tab_ai:
+        render_assistant(df, country, year, top_n)
+
+    with tab_about:
+        st.markdown(METHOD_NOTES)
+
+    st.markdown(FOOTER_HTML, unsafe_allow_html=True)
 
 
 def render_assistant(df: pd.DataFrame, country: str, year: int,

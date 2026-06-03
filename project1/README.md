@@ -13,6 +13,9 @@ Data: **UN FAO — FAOSTAT**, *Production: Crops and livestock products*
 (production quantity, tonnes).
 
 ## What it does
+> **Clean tabbed UI** — 🗺️ World map · 🔎 Country deep-dive (with KPI cards) ·
+> 🤖 Ask AI · ℹ️ About — with an earthy theme and a hero header.
+
 - **World choropleth** with a year **slider + ▶ play button** to animate
   1961 → 2024.
 - Two ways to read the map (switchable):
