@@ -265,6 +265,35 @@ def build_assistant_context(
         for row in leaders.itertuples(index=False)
     ) or "No comparison rows"
 
+    # Year-by-year series so the model can actually answer trend / "what changed"
+    # questions across the selected range, not just the single latest year.
+    country_scoped = scoped[scoped["Area"].eq(country)]
+    country_yearly = (
+        country_scoped.groupby("Year", as_index=False)["Value"].sum().sort_values("Year")
+    )
+    yearly_trend = ", ".join(
+        f"{int(row.Year)}: {format_tonnes(float(row.Value))}"
+        for row in country_yearly.itertuples(index=False)
+    ) or "No yearly data"
+
+    crop_changes = []
+    for item in context_items:
+        item_yearly = (
+            country_scoped[country_scoped["Item"].eq(item)]
+            .groupby("Year", as_index=False)["Value"]
+            .sum()
+            .sort_values("Year")
+        )
+        if item_yearly.empty:
+            continue
+        first = item_yearly.iloc[0]
+        last = item_yearly.iloc[-1]
+        crop_changes.append(
+            f"{item}: {int(first['Year'])} {format_tonnes(float(first['Value']))} -> "
+            f"{int(last['Year'])} {format_tonnes(float(last['Value']))}"
+        )
+    crop_change_text = "; ".join(crop_changes) or "No per-crop trend data"
+
     return "\n".join(
         [
             f"Dashboard country: {country}",
@@ -274,6 +303,8 @@ def build_assistant_context(
             f"Selected year range: {year_range[0]}-{year_range[1]}",
             f"Year used for the map and country rankings: {comparison_year}",
             f"Country crop values for {latest_year}: {top_crops}",
+            f"{country} total of selected crops per year ({year_range[0]}-{year_range[1]}): {yearly_trend}",
+            f"{country} per-crop change across the range: {crop_change_text}",
             f"Top countries for selected crops in {comparison_year}: {top_countries}",
             f"Data source note: {source_note}",
         ]

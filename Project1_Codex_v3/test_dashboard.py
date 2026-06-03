@@ -42,6 +42,33 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn("2022-2023", context)
         self.assertIn("Test source", context)
 
+    def test_assistant_context_includes_year_by_year_trend(self):
+        data = pd.DataFrame(
+            [
+                ("Afghanistan", "Wheat", 2004, 2000),
+                ("Afghanistan", "Wheat", 2014, 4000),
+                ("Afghanistan", "Wheat", 2024, 6000),
+            ],
+            columns=["Area", "Item", "Year", "Value"],
+        )
+
+        context = main.build_assistant_context(
+            data=data,
+            country="Afghanistan",
+            selected_items=["Wheat"],
+            year_range=(2004, 2024),
+            comparison_year=2024,
+            source_note="Test source",
+        )
+
+        # Every year in the range must be present so the model can reason about trends.
+        self.assertIn("2004:", context)
+        self.assertIn("2014:", context)
+        self.assertIn("2024:", context)
+        # Per-crop start -> end change must be present.
+        self.assertIn("Wheat: 2004", context)
+        self.assertIn("-> 2024", context)
+
     def test_normalize_faostat_data_keeps_production_tonnes_rows(self):
         raw = pd.DataFrame(
             [
