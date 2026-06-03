@@ -156,6 +156,22 @@ It's **off until you add an API key** (the app shows a friendly prompt otherwise
 
 No key, no problem — every other feature works without it.
 
+## 🆚 Two versions (classic vs redesigned)
+This project ships **two layouts** of the same dashboard, so you can compare the
+before/after:
+
+- **`app.py`** — the **redesigned** UI: tabs, KPI cards, earthy theme, hero header.
+- **`app_classic.py`** — the **classic** single-scroll layout (the original).
+
+Both read the same data and share `src/`. Run either locally:
+```
+streamlit run app.py            # redesigned
+streamlit run app_classic.py    # classic
+```
+To show both online, deploy them as **two separate Streamlit Cloud apps** with
+the same repo/branch but different *Main file path* (`project1/app.py` and
+`project1/app_classic.py`).
+
 ## 🚀 Run it online (so anyone can hover the map)
 The repo ships the prebuilt `data/processed/production.parquet`, so the live app
 needs **no download at runtime** — it just runs `app.py`.
