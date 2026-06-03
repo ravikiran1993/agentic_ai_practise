@@ -662,9 +662,11 @@ def apply_chart_theme(fig, height: int | None = None) -> None:
         "font": {"color": "#f5f7ef", "family": "Inter, Segoe UI, sans-serif"},
         "colorway": CHART_COLORS,
         "legend": {
-            "bgcolor": "rgba(18, 24, 38, 0.72)",
-            "bordercolor": "rgba(156, 176, 204, 0.18)",
+            "bgcolor": "rgba(12, 18, 30, 0.94)",
+            "bordercolor": "rgba(213, 226, 214, 0.28)",
             "borderwidth": 1,
+            "font": {"color": "#f5f7ef", "size": 14},
+            "title": {"font": {"color": "#f5f7ef", "size": 16}},
         },
         "margin": {"l": 10, "r": 10, "t": 24, "b": 10},
     }
