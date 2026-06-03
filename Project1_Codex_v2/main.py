@@ -36,6 +36,9 @@ CROP_GROUPS = {
     "Oil crops": ["soybean", "rapeseed", "sunflower", "groundnut", "palm", "olive"],
     "Cash crops": ["coffee", "cocoa", "tea", "cotton", "sugar cane", "tobacco"],
 }
+CHART_COLORS = ["#ccff5a", "#6b8cff", "#43d4b7", "#ffb454", "#ff6f91", "#9fe870", "#76d0ff"]
+CHART_BACKGROUND = "#121826"
+PANEL_BACKGROUND = "#182133"
 
 DEMO_DATA = pd.DataFrame(
     [
@@ -651,79 +654,222 @@ def build_suggested_questions(
     ]
 
 
+def apply_chart_theme(fig, height: int | None = None) -> None:
+    layout = {
+        "template": "plotly_dark",
+        "paper_bgcolor": CHART_BACKGROUND,
+        "plot_bgcolor": CHART_BACKGROUND,
+        "font": {"color": "#f5f7ef", "family": "Inter, Segoe UI, sans-serif"},
+        "colorway": CHART_COLORS,
+        "legend": {
+            "bgcolor": "rgba(18, 24, 38, 0.72)",
+            "bordercolor": "rgba(156, 176, 204, 0.18)",
+            "borderwidth": 1,
+        },
+        "margin": {"l": 10, "r": 10, "t": 24, "b": 10},
+    }
+    if height is not None:
+        layout["height"] = height
+    fig.update_layout(**layout)
+    fig.update_xaxes(gridcolor="rgba(156, 176, 204, 0.12)", zerolinecolor="rgba(156, 176, 204, 0.16)")
+    fig.update_yaxes(gridcolor="rgba(156, 176, 204, 0.12)", zerolinecolor="rgba(156, 176, 204, 0.16)")
+
+
 def inject_dashboard_css() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap');
+        :root {
+            --bg: #090d16;
+            --panel: #141c2b;
+            --panel-2: #192437;
+            --line: rgba(156, 176, 204, 0.18);
+            --text: #f5f7ef;
+            --muted: #a8b0bd;
+            --lime: #ccff5a;
+            --green: #43d477;
+            --blue: #6b8cff;
+            --cyan: #43d4b7;
+            --danger: #ff7f84;
+        }
+        html, body, [class*="css"] {
+            font-family: Inter, "Segoe UI", sans-serif;
+        }
+        .stApp {
+            color: var(--text);
+            background:
+                radial-gradient(circle at 18% 8%, rgba(67, 212, 119, 0.2), transparent 24rem),
+                radial-gradient(circle at 88% 12%, rgba(107, 140, 255, 0.22), transparent 26rem),
+                linear-gradient(135deg, #080b12 0%, #0e1421 48%, #07100d 100%);
+        }
         .block-container {
-            padding-top: 1.8rem;
-            padding-bottom: 2rem;
-            max-width: 1500px;
+            padding-top: 1.2rem;
+            padding-bottom: 2.4rem;
+            max-width: 1540px;
         }
         h1 {
-            margin-bottom: 0.15rem;
+            color: var(--text);
+            font-size: clamp(2.2rem, 4.2vw, 4.8rem);
+            font-weight: 900;
             letter-spacing: 0;
+            line-height: 0.96;
+            margin-bottom: 0.35rem;
+            text-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+        }
+        h2, h3 {
+            color: var(--text);
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+        p, label, span, div {
+            letter-spacing: 0;
+        }
+        [data-testid="stCaptionContainer"], .stMarkdown p {
+            color: var(--muted);
         }
         div[data-testid="stVerticalBlock"] {
             gap: 0.7rem;
         }
+        div[data-testid="stContainer"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+                rgba(20, 28, 43, 0.84);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+        }
         div[data-testid="stMetric"] {
-            background: #ffffff;
-            border: 1px solid #e7e2d5;
-            border-radius: 8px;
-            padding: 0.8rem 0.9rem;
-            box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+            min-height: 136px;
+            background:
+                linear-gradient(150deg, rgba(204, 255, 90, 0.11), transparent 36%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.062), rgba(255, 255, 255, 0.022)),
+                var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 1.05rem 1.15rem;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+        }
+        div[data-testid="stMetric"] label,
+        div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            color: var(--text);
+            font-size: clamp(2rem, 3.1vw, 3.25rem);
+            font-weight: 900;
         }
         .view-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            padding: 0.75rem 0.9rem;
-            border: 1px solid #e7e2d5;
-            border-radius: 8px;
-            background: #ffffff;
+            padding: 0.95rem 1.05rem;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background:
+                linear-gradient(90deg, rgba(67, 212, 119, 0.12), rgba(107, 140, 255, 0.09)),
+                rgba(20, 28, 43, 0.82);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
         }
         .view-label {
-            color: #77746b;
+            color: var(--lime);
             font-size: 0.78rem;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.08em;
             margin-bottom: 0.15rem;
+            font-weight: 900;
         }
         .view-summary {
             font-size: 1rem;
-            color: #2f302c;
-            font-weight: 600;
+            color: var(--text);
+            font-weight: 750;
         }
         .section-note {
-            color: #77746b;
+            color: var(--muted);
             font-size: 0.92rem;
             margin-top: -0.35rem;
         }
         .insight-card {
-            min-height: 96px;
-            padding: 0.9rem 1rem;
-            border: 1px solid #e7e2d5;
-            border-radius: 8px;
-            background: #ffffff;
-            box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+            min-height: 142px;
+            padding: 1rem 1.1rem;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background:
+                linear-gradient(135deg, rgba(107, 140, 255, 0.12), transparent 34%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.02)),
+                var(--panel);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
         }
         .insight-label {
-            color: #77746b;
+            color: var(--cyan);
             font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.35rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.45rem;
+            font-weight: 900;
         }
         .insight-copy {
-            color: #2f302c;
+            color: var(--text);
             font-size: 0.98rem;
             line-height: 1.35;
-            font-weight: 600;
+            font-weight: 750;
+        }
+        div[data-testid="stTabs"] {
+            background: rgba(20, 28, 43, 0.72);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0.25rem 0.4rem 0.65rem;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
         }
         div[data-testid="stTabs"] button {
-            font-weight: 600;
+            color: var(--muted);
+            font-weight: 850;
+            border-radius: 8px;
+            min-height: 2.7rem;
+        }
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+            color: #08100c;
+            background: linear-gradient(135deg, var(--lime), var(--green));
+        }
+        div[data-baseweb="select"] > div,
+        div[data-testid="stTextArea"] textarea,
+        div[data-testid="stTextInput"] input {
+            color: var(--text);
+            background: rgba(7, 12, 20, 0.62);
+            border-color: rgba(156, 176, 204, 0.26);
+            border-radius: 8px;
+        }
+        div[data-baseweb="select"] svg {
+            color: var(--muted);
+        }
+        div[data-testid="stSlider"] [role="slider"] {
+            border-color: var(--lime);
+            background: var(--lime);
+        }
+        div[data-testid="stSlider"] [data-testid="stTickBar"] {
+            color: var(--muted);
+        }
+        div[data-testid="stButton"] button,
+        div[data-testid="stDownloadButton"] button {
+            border-radius: 8px;
+            border: 1px solid rgba(204, 255, 90, 0.34);
+            background: rgba(204, 255, 90, 0.08);
+            color: var(--text);
+            font-weight: 800;
+        }
+        div[data-testid="stButton"] button[kind="primary"] {
+            background: linear-gradient(135deg, var(--lime), var(--green));
+            color: #07100c;
+            border-color: transparent;
+        }
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
         }
         .st-key-floating_ai_button {
             position: fixed;
@@ -749,11 +895,11 @@ def inject_dashboard_css() -> None:
             opacity: 0;
             white-space: nowrap;
             padding: 0.45rem 0.65rem;
-            border: 1px solid #d9e5cb;
+            border: 1px solid rgba(204, 255, 90, 0.24);
             border-radius: 999px;
-            background: #fffdf7;
-            color: #33533a;
-            box-shadow: 0 10px 26px rgba(34, 66, 39, 0.16);
+            background: rgba(20, 28, 43, 0.96);
+            color: var(--lime);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
             font-size: 0.82rem;
             font-weight: 750;
             transition: opacity 160ms ease, transform 160ms ease;
@@ -809,31 +955,33 @@ def inject_dashboard_css() -> None:
             max-height: min(74vh, 680px);
             overflow-y: auto;
             padding: 1rem;
-            border: 1px solid #e0dacb;
-            border-radius: 8px;
-            background: #fffdf7;
+            border: 1px solid rgba(204, 255, 90, 0.18);
+            border-radius: 10px;
+            background:
+                linear-gradient(160deg, rgba(204, 255, 90, 0.07), transparent 34%),
+                rgba(20, 28, 43, 0.98);
             box-shadow: 0 18px 48px rgba(20, 20, 20, 0.2);
         }
         .assistant-kicker {
-            color: #77746b;
+            color: var(--lime);
             font-size: 0.76rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.15rem;
         }
         .assistant-title {
-            color: #2f302c;
+            color: var(--text);
             font-size: 1.2rem;
             font-weight: 750;
             margin-bottom: 0.2rem;
         }
         .assistant-note {
-            color: #77746b;
+            color: var(--muted);
             font-size: 0.9rem;
             line-height: 1.35;
         }
         .assistant-dock-label {
-            color: #77746b;
+            color: var(--muted);
             font-size: 0.78rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -1187,7 +1335,7 @@ def main() -> None:
                     f"({format_tonnes(float(leading_crop['Value']))})."
                 )
                 st.caption(
-                    "Use the tabs above to switch between the map, country trend lines, ranked producers, and AI help."
+                    "Use the tabs above to switch between the map, country trend lines, and ranked producers. The plant assistant is available on the left."
                 )
         with table_col:
             st.subheader(f"Top Crops, {latest_year}")
@@ -1220,11 +1368,22 @@ def main() -> None:
                 },
                 projection="natural earth",
                 labels={"Item": "Top crop", "ValueLabel": "Production"},
+                color_discrete_sequence=CHART_COLORS,
             )
+            apply_chart_theme(fig, height=620)
             fig.update_layout(
-                height=620,
                 margin=dict(l=8, r=8, t=8, b=8),
                 legend_title_text="Top crop",
+                geo=dict(
+                    bgcolor=CHART_BACKGROUND,
+                    lakecolor=PANEL_BACKGROUND,
+                    landcolor="#223047",
+                    oceancolor="#0c1320",
+                    showocean=True,
+                    showcountries=True,
+                    countrycolor="rgba(245, 247, 239, 0.18)",
+                    coastlinecolor="rgba(245, 247, 239, 0.18)",
+                ),
             )
             st.plotly_chart(fig, width="stretch")
 
@@ -1240,7 +1399,9 @@ def main() -> None:
                 color="Item",
                 markers=True,
                 labels={"Value": "Production quantity (tonnes)", "Item": "Crop"},
+                color_discrete_sequence=CHART_COLORS,
             )
+            apply_chart_theme(fig, height=540)
             fig.update_layout(legend_title_text="Crop", hovermode="x unified", margin=dict(l=8, r=8, t=20, b=8))
             st.plotly_chart(fig, width="stretch")
 
@@ -1321,9 +1482,10 @@ def main() -> None:
                     color="Area",
                     markers=True,
                     labels={"Value": "Production quantity (tonnes)", "Area": "Country"},
+                    color_discrete_sequence=CHART_COLORS,
                 )
+                apply_chart_theme(compare_fig, height=520)
                 compare_fig.update_layout(
-                    height=520,
                     legend_title_text="Country",
                     hovermode="x unified",
                     margin=dict(l=8, r=8, t=20, b=8),
@@ -1341,7 +1503,10 @@ def main() -> None:
                 y="Area",
                 orientation="h",
                 labels={"Value": "Production quantity (tonnes)", "Area": "Country"},
+                color="Value",
+                color_continuous_scale=["#223047", "#43d477", "#ccff5a"],
             )
+            apply_chart_theme(fig, height=620)
             fig.update_layout(yaxis={"categoryorder": "total ascending"}, margin=dict(l=8, r=8, t=10, b=8))
             st.plotly_chart(fig, width="stretch")
             st.dataframe(
