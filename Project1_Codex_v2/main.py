@@ -728,6 +728,11 @@ def inject_dashboard_css() -> None:
         [data-testid="stCaptionContainer"], .stMarkdown p {
             color: var(--muted);
         }
+        div[data-testid="stWidgetLabel"] label,
+        div[data-testid="stWidgetLabel"] p {
+            color: #dfe6d8;
+            font-weight: 800;
+        }
         div[data-testid="stVerticalBlock"] {
             gap: 0.7rem;
         }
@@ -843,15 +848,77 @@ def inject_dashboard_css() -> None:
             border-color: rgba(156, 176, 204, 0.26);
             border-radius: 8px;
         }
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] div {
+            color: var(--text);
+        }
+        div[data-baseweb="popover"] {
+            background: #111827;
+        }
+        div[data-baseweb="popover"] li,
+        div[data-baseweb="menu"] li {
+            color: var(--text);
+            background: #111827;
+        }
+        div[data-baseweb="popover"] li:hover,
+        div[data-baseweb="menu"] li:hover {
+            color: #07100c;
+            background: var(--lime);
+        }
         div[data-baseweb="select"] svg {
             color: var(--muted);
+        }
+        div[data-testid="stSlider"] {
+            color: var(--text);
         }
         div[data-testid="stSlider"] [role="slider"] {
             border-color: var(--lime);
             background: var(--lime);
         }
         div[data-testid="stSlider"] [data-testid="stTickBar"] {
-            color: var(--muted);
+            color: #dfe6d8;
+        }
+        div[data-testid="stSlider"] [data-testid="stThumbValue"],
+        div[data-testid="stSlider"] [data-testid="stTickBar"] div {
+            color: var(--lime);
+            font-weight: 850;
+        }
+        div[data-testid="stSegmentedControl"] {
+            background: rgba(7, 12, 20, 0.72);
+            border: 1px solid rgba(156, 176, 204, 0.26);
+            border-radius: 10px;
+            padding: 0.12rem;
+        }
+        div[data-testid="stSegmentedControl"] button {
+            color: #dfe6d8;
+            background: rgba(17, 24, 39, 0.86);
+            border-color: rgba(156, 176, 204, 0.22);
+            font-weight: 850;
+        }
+        div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+        div[data-testid="stSegmentedControl"] button[data-selected="true"] {
+            color: #07100c;
+            background: linear-gradient(135deg, var(--lime), var(--green));
+            border-color: transparent;
+        }
+        div[data-testid="stSegmentedControl"] button p {
+            color: inherit;
+            font-weight: inherit;
+        }
+        div[data-testid="stPills"] button {
+            color: #dfe6d8;
+            background: rgba(17, 24, 39, 0.82);
+            border: 1px solid rgba(156, 176, 204, 0.28);
+            font-weight: 800;
+        }
+        div[data-testid="stPills"] button[aria-pressed="true"],
+        div[data-testid="stPills"] button[data-selected="true"] {
+            color: #07100c;
+            background: linear-gradient(135deg, var(--lime), var(--green));
+            border-color: transparent;
+        }
+        div[data-testid="stPills"] button p {
+            color: inherit;
         }
         div[data-testid="stButton"] button,
         div[data-testid="stDownloadButton"] button {
