@@ -725,10 +725,162 @@ def inject_dashboard_css() -> None:
         div[data-testid="stTabs"] button {
             font-weight: 600;
         }
+        .st-key-floating_ai_button {
+            position: fixed;
+            right: 1.35rem;
+            bottom: 1.25rem;
+            z-index: 1002;
+        }
+        .st-key-floating_ai_button button {
+            border-radius: 999px;
+            min-height: 3.25rem;
+            padding: 0 1.15rem;
+            border: 1px solid #2f302c;
+            background: #2f302c;
+            color: #ffffff;
+            box-shadow: 0 12px 32px rgba(20, 20, 20, 0.22);
+            font-weight: 700;
+        }
+        .st-key-floating_ai_panel {
+            position: fixed;
+            right: 1.35rem;
+            bottom: 5.2rem;
+            z-index: 1001;
+            width: min(430px, calc(100vw - 2rem));
+            max-height: min(74vh, 680px);
+            overflow-y: auto;
+            padding: 1rem;
+            border: 1px solid #e0dacb;
+            border-radius: 8px;
+            background: #fffdf7;
+            box-shadow: 0 18px 48px rgba(20, 20, 20, 0.2);
+        }
+        .assistant-kicker {
+            color: #77746b;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.15rem;
+        }
+        .assistant-title {
+            color: #2f302c;
+            font-size: 1.2rem;
+            font-weight: 750;
+            margin-bottom: 0.2rem;
+        }
+        .assistant-note {
+            color: #77746b;
+            font-size: 0.9rem;
+            line-height: 1.35;
+        }
+        @media (max-width: 640px) {
+            .st-key-floating_ai_button {
+                right: 1rem;
+                bottom: 1rem;
+            }
+            .st-key-floating_ai_panel {
+                right: 1rem;
+                bottom: 4.85rem;
+                width: calc(100vw - 2rem);
+                max-height: 72vh;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_floating_assistant(
+    data: pd.DataFrame,
+    country: str,
+    selected_items: list[str],
+    year_range: tuple[int, int],
+    map_year: int,
+    source_note: str,
+    groq_api_key: str,
+    groq_model: str,
+) -> None:
+    if "assistant_open" not in st.session_state:
+        st.session_state["assistant_open"] = False
+
+    if st.button(
+        "Ask AI",
+        key="floating_ai_button",
+        icon=":material/smart_toy:",
+        help="Open the AI assistant from any dashboard view.",
+    ):
+        st.session_state["assistant_open"] = not st.session_state["assistant_open"]
+
+    if not st.session_state["assistant_open"]:
+        return
+
+    with st.container(key="floating_ai_panel"):
+        header_cols = st.columns([1, 0.22])
+        with header_cols[0]:
+            st.markdown(
+                """
+                <div class="assistant-kicker">Dashboard assistant</div>
+                <div class="assistant-title">Ask about this view</div>
+                <div class="assistant-note">Uses your selected country, crops, year range, map, rankings, and trends.</div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with header_cols[1]:
+            if st.button("x", key="close_floating_ai", help="Close assistant"):
+                st.session_state["assistant_open"] = False
+                st.rerun()
+
+        suggested_questions = build_suggested_questions(country, selected_items, year_range)
+        suggestion = st.pills(
+            "Try asking",
+            suggested_questions,
+            selection_mode="single",
+            key="floating_suggested_question",
+            width="stretch",
+        )
+        if suggestion and suggestion != st.session_state.get("floating_last_suggestion"):
+            st.session_state["floating_ai_question"] = suggestion
+            st.session_state["floating_last_suggestion"] = suggestion
+            st.rerun()
+
+        question = st.text_area(
+            "Question",
+            key="floating_ai_question",
+            placeholder="Example: Is Japan growing more rice compared with India?",
+            height=92,
+        )
+
+        if st.button("Ask Assistant", type="primary", key="floating_ai_submit"):
+            if not question.strip():
+                st.warning("Enter a question first.")
+            elif not groq_api_key:
+                st.warning("Add GROQ_API_KEY in Streamlit secrets to enable the assistant.")
+            else:
+                context = build_assistant_context(
+                    data=data,
+                    country=country,
+                    selected_items=selected_items,
+                    year_range=year_range,
+                    comparison_year=map_year,
+                    source_note=source_note,
+                    question=question,
+                )
+                with st.spinner("Asking assistant..."):
+                    try:
+                        st.session_state["floating_ai_answer"] = ask_groq(
+                            question,
+                            context,
+                            groq_api_key,
+                            groq_model,
+                        )
+                    except requests.HTTPError as exc:
+                        st.error(f"AI assistant request failed: {exc.response.status_code} {exc.response.text}")
+                    except Exception as exc:
+                        st.error(f"AI assistant failed: {exc}")
+
+        if st.session_state.get("floating_ai_answer"):
+            st.markdown(st.session_state["floating_ai_answer"])
 
 
 def main() -> None:
@@ -896,8 +1048,19 @@ def main() -> None:
                 unsafe_allow_html=True,
             )
 
-    map_tab, compare_tab, overview_tab, trends_tab, countries_tab, assistant_tab = st.tabs(
-        ["World Map", "Compare Countries", "Overview", "Trends", "Countries", "AI Assistant"]
+    render_floating_assistant(
+        data=data,
+        country=country,
+        selected_items=selected_items,
+        year_range=year_range,
+        map_year=map_year,
+        source_note=source_note,
+        groq_api_key=groq_api_key,
+        groq_model=groq_model,
+    )
+
+    map_tab, compare_tab, overview_tab, trends_tab, countries_tab = st.tabs(
+        ["World Map", "Compare Countries", "Overview", "Trends", "Countries"]
     )
 
     with overview_tab:
@@ -1076,47 +1239,6 @@ def main() -> None:
                 width="stretch",
                 hide_index=True,
             )
-
-    with assistant_tab:
-        st.subheader("Ask About This Dashboard")
-        st.caption("Ask about the selected country, crops, map, rankings, or trends.")
-        suggested_questions = build_suggested_questions(country, selected_items, year_range)
-        suggestion = st.pills(
-            "Suggested questions",
-            suggested_questions,
-            selection_mode="single",
-            key="suggested_question",
-            width="stretch",
-        )
-        question = st.text_area(
-            "Question",
-            value=suggestion or "",
-            placeholder="Example: Which selected crop dominates South America in the selected end year?",
-            height=96,
-        )
-        if st.button("Ask AI Assistant", type="primary"):
-            if not question.strip():
-                st.warning("Enter a question first.")
-            elif not groq_api_key:
-                st.warning("The AI assistant is not configured yet. Add GROQ_API_KEY in Streamlit secrets.")
-            else:
-                context = build_assistant_context(
-                    data=data,
-                    country=country,
-                    selected_items=selected_items,
-                    year_range=year_range,
-                    comparison_year=map_year,
-                    source_note=source_note,
-                    question=question,
-                )
-                with st.spinner("Asking AI assistant..."):
-                    try:
-                        answer = ask_groq(question, context, groq_api_key, groq_model)
-                        st.markdown(answer)
-                    except requests.HTTPError as exc:
-                        st.error(f"AI assistant request failed: {exc.response.status_code} {exc.response.text}")
-                    except Exception as exc:
-                        st.error(f"AI assistant failed: {exc}")
 
     st.caption(
         f"Source: {source_note}. FAOSTAT QCL: https://www.fao.org/faostat/en/#data/QCL"
