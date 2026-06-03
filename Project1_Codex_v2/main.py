@@ -951,8 +951,15 @@ def inject_dashboard_css() -> None:
             min-height: 2.7rem;
         }
         div[data-testid="stTabs"] button[aria-selected="true"] {
-            color: #08100c;
+            color: #07100c !important;
             background: linear-gradient(135deg, var(--lime), var(--green));
+        }
+        div[data-testid="stTabs"] button[aria-selected="true"] *,
+        div[data-testid="stTabs"] button[aria-selected="true"] p,
+        div[data-testid="stTabs"] button[aria-selected="true"] span {
+            color: #07100c !important;
+            font-weight: 900 !important;
+            opacity: 1 !important;
         }
         div[data-baseweb="select"] > div,
         div[data-testid="stTextArea"] textarea,
