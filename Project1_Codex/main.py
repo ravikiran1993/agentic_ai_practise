@@ -330,8 +330,7 @@ def summarize_filter_state(
     is_live: bool,
 ) -> str:
     crop_label = f"{len(selected_items)} crop" if len(selected_items) == 1 else f"{len(selected_items)} crops"
-    data_label = "FAOSTAT live" if is_live else "fallback data"
-    return f"{country} | {selected_group} | {crop_label} | {year_range[0]}-{year_range[1]} | {data_label}"
+    return f"{country} | {selected_group} | {crop_label} | {year_range[0]}-{year_range[1]}"
 
 
 def build_crop_tile_options(data: pd.DataFrame, selected_items: list[str], limit: int = 18) -> list[str]:
@@ -537,11 +536,10 @@ def main() -> None:
         .head(20)
     )
 
-    metric_cols = st.columns(4)
+    metric_cols = st.columns(3)
     metric_cols[0].metric("Country", country)
     metric_cols[1].metric("Crops", len(selected_items))
     metric_cols[2].metric(f"Total in {latest_year}", format_tonnes(total_latest))
-    metric_cols[3].metric("Data source", "FAOSTAT live" if is_live else "Fallback")
 
     map_tab, overview_tab, trends_tab, countries_tab, assistant_tab = st.tabs(
         ["World Map", "Overview", "Trends", "Countries", "AI Assistant"]

@@ -132,7 +132,7 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn("Japan", summary)
         self.assertIn("3 crops", summary)
         self.assertIn("2000-2024", summary)
-        self.assertIn("FAOSTAT live", summary)
+        self.assertNotIn("FAOSTAT live", summary)
 
     def test_build_crop_tile_options_keeps_selected_items_and_top_crops(self):
         data = pd.DataFrame(
