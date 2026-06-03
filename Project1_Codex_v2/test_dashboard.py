@@ -265,6 +265,15 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn("Maize", formatted)
         self.assertNotIn("(corn)", formatted)
 
+    def test_crop_icon_uses_specific_crop_matches_before_generic_groups(self):
+        self.assertTrue(main.format_crop_option("Grapes").startswith("\U0001f347"))
+        self.assertTrue(main.format_crop_option("Maize (corn)").startswith("\U0001f33d"))
+        self.assertTrue(main.format_crop_option("Potatoes").startswith("\U0001f954"))
+        self.assertTrue(main.format_crop_option("Raw milk of cattle").startswith("\U0001f95b"))
+        self.assertTrue(
+            main.format_crop_option("Onions and shallots, dry (excluding dehydrated)").startswith("\U0001f9c5")
+        )
+
     def test_parse_llm_insights_limits_to_three_non_empty_items(self):
         parsed = main.parse_llm_insights(
             "1. Rice is the dependency risk.\n"

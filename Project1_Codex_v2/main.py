@@ -380,15 +380,38 @@ def simplify_crop_label(item: str) -> str:
 
 def crop_icon(item: str) -> str:
     item_text = str(item).casefold()
-    if any(word in item_text for word in ["milk", "meat", "cattle", "sheep", "cow"]):
-        return "🥛"
-    if any(word in item_text for word in ["fruit", "grape", "apple", "orange", "watermelon"]):
-        return "🍎"
-    if any(word in item_text for word in ["vegetable", "onion", "potato", "root", "tuber"]):
-        return "🥕"
-    if any(word in item_text for word in ["wheat", "rice", "maize", "barley", "cereal"]):
-        return "🌾"
-    return "🌱"
+    specific_icons = [
+        (["grape"], "\U0001f347"),
+        (["apple"], "\U0001f34e"),
+        (["orange"], "\U0001f34a"),
+        (["watermelon"], "\U0001f349"),
+        (["banana"], "\U0001f34c"),
+        (["pineapple"], "\U0001f34d"),
+        (["strawberry"], "\U0001f353"),
+        (["maize", "corn"], "\U0001f33d"),
+        (["rice"], "\U0001f35a"),
+        (["wheat", "barley", "cereal", "oats", "rye", "sorghum", "millet"], "\U0001f33e"),
+        (["potato", "tuber"], "\U0001f954"),
+        (["onion", "shallot"], "\U0001f9c5"),
+        (["tomato"], "\U0001f345"),
+        (["carrot", "root"], "\U0001f955"),
+        (["pepper"], "\U0001fad1"),
+        (["milk", "cattle", "sheep", "cow"], "\U0001f95b"),
+        (["meat"], "\U0001f969"),
+        (["coffee"], "\u2615"),
+        (["cocoa"], "\U0001f36b"),
+        (["tea"], "\U0001fad6"),
+        (["cotton"], "\U0001f9f5"),
+    ]
+    for keywords, icon in specific_icons:
+        if any(keyword in item_text for keyword in keywords):
+            return icon
+
+    if "fruit" in item_text:
+        return "\U0001f34e"
+    if "vegetable" in item_text:
+        return "\U0001f96c"
+    return "\U0001f331"
 
 
 def format_crop_option(item: str) -> str:
