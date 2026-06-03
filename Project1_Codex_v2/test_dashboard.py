@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pandas as pd
 
@@ -250,6 +250,56 @@ class DashboardDataTests(unittest.TestCase):
         self.assertEqual(len(questions), 4)
         self.assertTrue(any("India" in question for question in questions))
         self.assertTrue(any("Rice" in question for question in questions))
+
+    def test_parse_llm_insights_limits_to_three_non_empty_items(self):
+        parsed = main.parse_llm_insights(
+            "1. Rice is the dependency risk.\n"
+            "2. India is widening the gap.\n"
+            "3. Growth is concentrated.\n"
+            "4. Extra item should be ignored."
+        )
+
+        self.assertEqual(
+            parsed,
+            [
+                "Rice is the dependency risk.",
+                "India is widening the gap.",
+                "Growth is concentrated.",
+            ],
+        )
+
+    def test_generate_llm_insights_returns_fallback_without_key(self):
+        fallback = ["fallback one", "fallback two", "fallback three"]
+
+        self.assertEqual(
+            main.generate_llm_insights({}, "", main.DEFAULT_GROQ_MODEL, fallback),
+            fallback,
+        )
+
+    @patch("main.requests.post")
+    def test_generate_llm_insights_uses_groq_response_when_available(self, mock_post):
+        response = Mock()
+        response.json.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "1. Rice drives the story.\n2. Rank is strong.\n3. Growth is improving."
+                    }
+                }
+            ]
+        }
+        response.raise_for_status.return_value = None
+        mock_post.return_value = response
+
+        insights = main.generate_llm_insights(
+            {"country": "India"},
+            "fake-key",
+            "test-model",
+            ["fallback one", "fallback two", "fallback three"],
+        )
+
+        self.assertEqual(insights[0], "Rice drives the story.")
+        self.assertEqual(len(insights), 3)
 
 
 if __name__ == "__main__":

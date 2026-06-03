@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from html import escape
 from io import BytesIO
 from zipfile import ZipFile
@@ -461,6 +462,134 @@ def build_executive_insights(
     return [leader_text, rank_text, total_text]
 
 
+def build_insight_facts(
+    country: str,
+    latest_year: int,
+    top_latest: pd.DataFrame,
+    total_latest: float,
+    country_totals: pd.DataFrame,
+    selected_items: list[str],
+    filtered: pd.DataFrame | None,
+    year_range: tuple[int, int],
+) -> dict:
+    fallback = build_executive_insights(
+        country=country,
+        latest_year=latest_year,
+        top_latest=top_latest,
+        total_latest=total_latest,
+        country_totals=country_totals,
+        selected_items=selected_items,
+        filtered=filtered,
+        year_range=year_range,
+    )
+
+    leading_crop = None
+    if not top_latest.empty:
+        leading_row = top_latest.iloc[0]
+        leading_value = float(leading_row["Value"])
+        leading_crop = {
+            "crop": str(leading_row["Item"]),
+            "value_tonnes": leading_value,
+            "formatted_value": format_tonnes(leading_value),
+            "share_of_selected_total_pct": round((leading_value / total_latest) * 100, 1) if total_latest else 0,
+        }
+
+    rank = None
+    if not country_totals.empty:
+        ranked = country_totals.reset_index(drop=True).copy()
+        ranked["Rank"] = ranked.index + 1
+        country_match = ranked[ranked["Area"].eq(country)]
+        if not country_match.empty:
+            row = country_match.iloc[0]
+            visible_total = float(ranked["Value"].sum())
+            rank = {
+                "rank": int(row["Rank"]),
+                "visible_country_count": int(len(ranked)),
+                "value_tonnes": float(row["Value"]),
+                "share_of_visible_total_pct": round((float(row["Value"]) / visible_total) * 100, 1)
+                if visible_total
+                else 0,
+            }
+
+    growth = None
+    if filtered is not None and not filtered.empty:
+        yearly = filtered.groupby("Year", as_index=False)["Value"].sum().sort_values("Year")
+        if len(yearly) >= 2:
+            start = yearly.iloc[0]
+            end = yearly.iloc[-1]
+            growth = {
+                "start_year": int(start["Year"]),
+                "end_year": int(end["Year"]),
+                "start_value_tonnes": float(start["Value"]),
+                "end_value_tonnes": float(end["Value"]),
+                "growth_pct": growth_percentage(float(start["Value"]), float(end["Value"])),
+            }
+
+    return {
+        "country": country,
+        "year_range": [year_range[0], year_range[1]],
+        "latest_year": latest_year,
+        "selected_crops": selected_items,
+        "selected_total_tonnes": total_latest,
+        "formatted_selected_total": format_tonnes(total_latest),
+        "leading_crop": leading_crop,
+        "country_rank": rank,
+        "growth": growth,
+        "fallback_insights": fallback,
+    }
+
+
+def parse_llm_insights(content: str) -> list[str]:
+    insights = []
+    for line in content.splitlines():
+        cleaned = re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip()
+        if cleaned:
+            insights.append(cleaned)
+        if len(insights) == 3:
+            break
+    return insights
+
+
+def generate_llm_insights(
+    facts: dict,
+    api_key: str,
+    model: str,
+    fallback_insights: list[str],
+) -> list[str]:
+    if not api_key:
+        return fallback_insights
+
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a senior analytics storyteller for an agriculture dashboard. "
+                    "Write exactly three concise, plain-English executive insights. "
+                    "Use only the supplied facts. Do not invent numbers. "
+                    "Each insight must explain why the number matters, not just repeat it."
+                ),
+            },
+            {"role": "user", "content": f"Facts:\n{facts}"},
+        ],
+        "temperature": 0.15,
+    }
+    try:
+        response = requests.post(
+            GROQ_CHAT_COMPLETIONS_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=45,
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        insights = parse_llm_insights(content)
+        return insights if len(insights) == 3 else fallback_insights
+    except Exception:
+        return fallback_insights
+
+
 def build_growth_insight(
     country: str,
     total_latest: float,
@@ -718,7 +847,9 @@ def main() -> None:
     metric_cols[1].metric("Crops", len(selected_items))
     metric_cols[2].metric(f"Total in {latest_year}", format_tonnes(total_latest))
 
-    insights = build_executive_insights(
+    groq_model = get_secret_value("GROQ_MODEL", DEFAULT_GROQ_MODEL)
+    groq_api_key = get_secret_value("GROQ_API_KEY")
+    insight_facts = build_insight_facts(
         country=country,
         latest_year=latest_year,
         top_latest=top_latest,
@@ -727,6 +858,12 @@ def main() -> None:
         selected_items=selected_items,
         filtered=filtered,
         year_range=year_range,
+    )
+    insights = generate_llm_insights(
+        insight_facts,
+        groq_api_key,
+        groq_model,
+        insight_facts["fallback_insights"],
     )
     insight_cols = st.columns(3)
     for index, insight in enumerate(insights):
@@ -925,8 +1062,6 @@ def main() -> None:
     with assistant_tab:
         st.subheader("Ask About This Dashboard")
         st.caption("Ask about the selected country, crops, map, rankings, or trends.")
-        groq_model = get_secret_value("GROQ_MODEL", DEFAULT_GROQ_MODEL)
-        groq_api_key = get_secret_value("GROQ_API_KEY")
         suggested_questions = build_suggested_questions(country, selected_items, year_range)
         suggestion = st.pills(
             "Suggested questions",
