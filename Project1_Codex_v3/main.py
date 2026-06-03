@@ -17,15 +17,23 @@ FAOSTAT_QCL_URL = (
     "https://fenixservices.fao.org/faostat/static/bulkdownloads/"
     "Production_Crops_Livestock_E_All_Data_(Normalized).zip"
 )
-# Gemini is the primary provider (generous free daily request budget); Groq is an
-# automatic fallback. Both expose an OpenAI-compatible /chat/completions endpoint,
-# so the same request/response shape works for either.
+# The assistant talks to a chain of free LLM providers, all of which expose an
+# OpenAI-compatible /chat/completions endpoint (Bearer auth + the same request
+# and response shape). They are tried in priority order; when one runs out of
+# free quota the assistant rolls to the next automatically. Add as many keys as
+# you like — more providers means more total daily capacity.
 GEMINI_CHAT_COMPLETIONS_URL = (
     "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 )
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+CEREBRAS_CHAT_COMPLETIONS_URL = "https://api.cerebras.ai/v1/chat/completions"
+DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+MISTRAL_CHAT_COMPLETIONS_URL = "https://api.mistral.ai/v1/chat/completions"
+DEFAULT_MISTRAL_MODEL = "mistral-small-latest"
 OWID_CROP_SOURCES = {
     "Wheat": "https://ourworldindata.org/grapher/wheat-production.csv",
     "Maize": "https://ourworldindata.org/grapher/maize-production.csv",
@@ -331,34 +339,39 @@ def build_context_items(data: pd.DataFrame, selected_items: list[str], question:
     return items
 
 
+# Provider chain in priority order: (display name, key secret, endpoint,
+# model secret, default model). All OpenAI-compatible, so they share
+# chat_completion(). A provider is used only when its API key is configured.
+AI_PROVIDER_SPECS = [
+    ("Gemini", "GEMINI_API_KEY", GEMINI_CHAT_COMPLETIONS_URL, "GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
+    ("Groq", "GROQ_API_KEY", GROQ_CHAT_COMPLETIONS_URL, "GROQ_MODEL", DEFAULT_GROQ_MODEL),
+    ("Cerebras", "CEREBRAS_API_KEY", CEREBRAS_CHAT_COMPLETIONS_URL, "CEREBRAS_MODEL", DEFAULT_CEREBRAS_MODEL),
+    ("OpenRouter", "OPENROUTER_API_KEY", OPENROUTER_CHAT_COMPLETIONS_URL, "OPENROUTER_MODEL", DEFAULT_OPENROUTER_MODEL),
+    ("Mistral", "MISTRAL_API_KEY", MISTRAL_CHAT_COMPLETIONS_URL, "MISTRAL_MODEL", DEFAULT_MISTRAL_MODEL),
+]
+
+
 def build_ai_providers() -> list[dict]:
-    """Ordered list of configured LLM providers: Gemini first, Groq as fallback.
+    """Ordered list of configured LLM providers (Gemini → Groq → Cerebras →
+    OpenRouter → Mistral).
 
     Each entry is OpenAI-compatible, so they share the same request shape. A
-    provider is only included when its API key is present, so the assistant works
-    with either key alone, or uses Groq automatically when Gemini fails.
+    provider is only included when its API key is present, and chat_completion()
+    tries them in order — so the assistant works with any single key, and when one
+    provider runs out of free quota it automatically rolls to the next.
     """
     providers: list[dict] = []
-    gemini_key = get_secret_value("GEMINI_API_KEY")
-    if gemini_key:
-        providers.append(
-            {
-                "name": "Gemini",
-                "url": GEMINI_CHAT_COMPLETIONS_URL,
-                "api_key": gemini_key,
-                "model": get_secret_value("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-            }
-        )
-    groq_key = get_secret_value("GROQ_API_KEY")
-    if groq_key:
-        providers.append(
-            {
-                "name": "Groq",
-                "url": GROQ_CHAT_COMPLETIONS_URL,
-                "api_key": groq_key,
-                "model": get_secret_value("GROQ_MODEL", DEFAULT_GROQ_MODEL),
-            }
-        )
+    for name, key_secret, url, model_secret, default_model in AI_PROVIDER_SPECS:
+        api_key = get_secret_value(key_secret)
+        if api_key:
+            providers.append(
+                {
+                    "name": name,
+                    "url": url,
+                    "api_key": api_key,
+                    "model": get_secret_value(model_secret, default_model),
+                }
+            )
     return providers
 
 
@@ -1799,10 +1812,9 @@ def main() -> None:
         year_range=insight_range,
     )
     # Streamlit reruns the whole script on every widget interaction (slider drag,
-    # tab switch, crop click). Calling the LLM here unconditionally would fire a
-    # request per rerun and blow past the free-tier rate limit almost immediately.
-    # So only regenerate insights when the country/crops/year-range actually change;
-    # otherwise reuse the cached result for this view.
+    # tab switch, crop click). Generate LLM insights only when the view actually
+    # changes (country/crops/year) and reuse the cached result otherwise, so we
+    # never re-spend quota on an unchanged view.
     insight_signature = (country, tuple(selected_items), focus_year)
     if (
         st.session_state.get("insight_signature") == insight_signature

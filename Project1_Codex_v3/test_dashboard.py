@@ -402,6 +402,22 @@ class DashboardDataTests(unittest.TestCase):
         self.assertEqual(providers[0]["url"], main.GEMINI_CHAT_COMPLETIONS_URL)
         self.assertEqual(providers[1]["url"], main.GROQ_CHAT_COMPLETIONS_URL)
 
+    def test_build_ai_providers_full_fallback_chain_order(self):
+        keys = {
+            "GEMINI_API_KEY": "g",
+            "GROQ_API_KEY": "q",
+            "CEREBRAS_API_KEY": "c",
+            "OPENROUTER_API_KEY": "o",
+            "MISTRAL_API_KEY": "m",
+        }
+        with patch.dict("os.environ", keys, clear=False):
+            providers = main.build_ai_providers()
+
+        names = [provider["name"] for provider in providers]
+        self.assertEqual(
+            names, ["Gemini", "Groq", "Cerebras", "OpenRouter", "Mistral"]
+        )
+
     @patch("main.requests.post")
     def test_chat_completion_falls_back_to_next_provider(self, mock_post):
         failing = Mock()
