@@ -392,7 +392,7 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         st.session_state["chat"].append({"role": "assistant", "content": ans})
 
 
-@st.dialog("🌱 Data assistant", width="large")
+@st.dialog("🌱 Data assistant", width="small")
 def assistant_dialog(df: pd.DataFrame, country: str, year: int,
                      top_n: int) -> None:
     render_assistant(df, country, year, top_n)
@@ -414,6 +414,10 @@ FAB_CSS = """
     box-shadow: 0 9px 22px rgba(45,90,30,0.50);
     color: #FFFFFF;
 }
+/* Lighten the assistant dialog's backdrop so the map stays visible behind it */
+div[data-testid="stDialog"]::backdrop,
+dialog[data-testid="stDialog"]::backdrop,
+dialog::backdrop { background-color: rgba(20,20,20,0.12) !important; }
 </style>
 """
 
