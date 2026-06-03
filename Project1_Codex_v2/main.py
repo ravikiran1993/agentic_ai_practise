@@ -411,6 +411,59 @@ def build_country_comparison(
     }
 
 
+def build_executive_insights(
+    country: str,
+    latest_year: int,
+    top_latest: pd.DataFrame,
+    total_latest: float,
+    country_totals: pd.DataFrame,
+    selected_items: list[str],
+) -> list[str]:
+    if top_latest.empty:
+        return [
+            "No crop rows match the current filters.",
+            "Try selecting a broader crop group or year range.",
+            "The map and rankings will update once data is available.",
+        ]
+
+    leading_crop = top_latest.iloc[0]
+    leader_text = (
+        f"{country}'s biggest selected crop in {latest_year} is "
+        f"{leading_crop['Item']} at {format_tonnes(float(leading_crop['Value']))}."
+    )
+
+    if country_totals.empty:
+        rank_text = "There is not enough country ranking data for the selected year."
+    else:
+        top_country = country_totals.iloc[0]
+        rank_text = (
+            f"Globally, {top_country['Area']} leads these selected crops in {latest_year} "
+            f"with {format_tonnes(float(top_country['Value']))}."
+        )
+
+    crop_count = len(selected_items)
+    crop_word = "crop" if crop_count == 1 else "crops"
+    total_text = (
+        f"Together, the {crop_count} {crop_word} selected add up to "
+        f"{format_tonnes(total_latest)} for {country}."
+    )
+    return [leader_text, rank_text, total_text]
+
+
+def build_suggested_questions(
+    country: str,
+    selected_items: list[str],
+    year_range: tuple[int, int],
+) -> list[str]:
+    crop = selected_items[0] if selected_items else "the selected crops"
+    return [
+        f"What is the main insight for {country} from {year_range[0]} to {year_range[1]}?",
+        f"Is {country} growing more {crop} over time?",
+        f"Which countries grow the most {crop} in {year_range[1]}?",
+        f"What changed most in {country}'s selected crops?",
+    ]
+
+
 def inject_dashboard_css() -> None:
     st.markdown(
         """
@@ -460,6 +513,27 @@ def inject_dashboard_css() -> None:
             color: #77746b;
             font-size: 0.92rem;
             margin-top: -0.35rem;
+        }
+        .insight-card {
+            min-height: 96px;
+            padding: 0.9rem 1rem;
+            border: 1px solid #e7e2d5;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+        }
+        .insight-label {
+            color: #77746b;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.35rem;
+        }
+        .insight-copy {
+            color: #2f302c;
+            font-size: 0.98rem;
+            line-height: 1.35;
+            font-weight: 600;
         }
         div[data-testid="stTabs"] button {
             font-weight: 600;
@@ -603,6 +677,27 @@ def main() -> None:
     metric_cols[0].metric("Country", country)
     metric_cols[1].metric("Crops", len(selected_items))
     metric_cols[2].metric(f"Total in {latest_year}", format_tonnes(total_latest))
+
+    insights = build_executive_insights(
+        country=country,
+        latest_year=latest_year,
+        top_latest=top_latest,
+        total_latest=total_latest,
+        country_totals=country_totals,
+        selected_items=selected_items,
+    )
+    insight_cols = st.columns(3)
+    for index, insight in enumerate(insights):
+        with insight_cols[index]:
+            st.markdown(
+                f"""
+                <div class="insight-card">
+                    <div class="insight-label">Insight {index + 1}</div>
+                    <div class="insight-copy">{escape(insight)}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     map_tab, compare_tab, overview_tab, trends_tab, countries_tab, assistant_tab = st.tabs(
         ["World Map", "Compare Countries", "Overview", "Trends", "Countries", "AI Assistant"]
@@ -790,8 +885,17 @@ def main() -> None:
         st.caption("Ask about the selected country, crops, map, rankings, or trends.")
         groq_model = get_secret_value("GROQ_MODEL", DEFAULT_GROQ_MODEL)
         groq_api_key = get_secret_value("GROQ_API_KEY")
+        suggested_questions = build_suggested_questions(country, selected_items, year_range)
+        suggestion = st.pills(
+            "Suggested questions",
+            suggested_questions,
+            selection_mode="single",
+            key="suggested_question",
+            width="stretch",
+        )
         question = st.text_area(
             "Question",
+            value=suggestion or "",
             placeholder="Example: Which selected crop dominates South America in the selected end year?",
             height=96,
         )

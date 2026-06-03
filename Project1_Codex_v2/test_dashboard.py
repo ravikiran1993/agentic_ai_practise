@@ -175,6 +175,41 @@ class DashboardDataTests(unittest.TestCase):
         self.assertEqual(comparison["leaders"][1]["growth_pct"], -25.0)
         self.assertEqual(comparison["gap"], 90)
 
+    def test_build_executive_insights_returns_plain_english_takeaways(self):
+        top_latest = pd.DataFrame(
+            [
+                {"Item": "Rice", "Value": 150},
+                {"Item": "Wheat", "Value": 50},
+            ]
+        )
+        country_totals = pd.DataFrame(
+            [
+                {"Area": "India", "Value": 1000},
+                {"Area": "Japan", "Value": 100},
+            ]
+        )
+
+        insights = main.build_executive_insights(
+            country="India",
+            latest_year=2024,
+            top_latest=top_latest,
+            total_latest=200,
+            country_totals=country_totals,
+            selected_items=["Rice", "Wheat"],
+        )
+
+        self.assertEqual(len(insights), 3)
+        self.assertIn("Rice", insights[0])
+        self.assertIn("India", insights[1])
+        self.assertIn("2 crops", insights[2])
+
+    def test_build_suggested_questions_uses_selected_context(self):
+        questions = main.build_suggested_questions("India", ["Rice", "Wheat"], (2000, 2024))
+
+        self.assertEqual(len(questions), 4)
+        self.assertTrue(any("India" in question for question in questions))
+        self.assertTrue(any("Rice" in question for question in questions))
+
 
 if __name__ == "__main__":
     unittest.main()
