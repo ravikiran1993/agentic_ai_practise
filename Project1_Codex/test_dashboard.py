@@ -95,6 +95,31 @@ class DashboardDataTests(unittest.TestCase):
         with patch.dict("os.environ", {"GROQ_MODEL": "groq-test"}):
             self.assertEqual(main.get_secret_value("GROQ_MODEL"), "groq-test")
 
+    def test_assistant_context_includes_countries_mentioned_in_question(self):
+        data = pd.DataFrame(
+            [
+                ("India", "Rice", 2023, 204671),
+                ("Japan", "Rice", 2023, 9810),
+                ("India", "Wheat", 2023, 110554),
+            ],
+            columns=["Area", "Item", "Year", "Value"],
+        )
+
+        context = main.build_assistant_context(
+            data=data,
+            country="India",
+            selected_items=["Rice"],
+            year_range=(2023, 2023),
+            comparison_year=2023,
+            source_note="Test source",
+            question="Is Japan growing more rice compared to India?",
+        )
+
+        self.assertIn("Japan", context)
+        self.assertIn("India", context)
+        self.assertIn("Rice", context)
+        self.assertIn("9.8K t", context)
+
 
 if __name__ == "__main__":
     unittest.main()

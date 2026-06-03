@@ -218,23 +218,26 @@ def build_assistant_context(
     year_range: tuple[int, int],
     comparison_year: int,
     source_note: str,
+    question: str = "",
 ) -> str:
+    context_areas = build_context_areas(data, country, question)
+    context_items = build_context_items(data, selected_items, question)
     scoped = data[
-        data["Area"].eq(country)
-        & data["Item"].isin(selected_items)
+        data["Area"].isin(context_areas)
+        & data["Item"].isin(context_items)
         & data["Year"].between(year_range[0], year_range[1])
     ]
     latest_year = int(scoped["Year"].max()) if not scoped.empty else comparison_year
     latest = (
         scoped[scoped["Year"].eq(latest_year)]
-        .groupby("Item", as_index=False)["Value"]
+        .groupby(["Area", "Item"], as_index=False)["Value"]
         .sum()
-        .sort_values("Value", ascending=False)
-        .head(10)
+        .sort_values(["Area", "Value"], ascending=[True, False])
+        .head(20)
     )
 
     leaders = (
-        data[data["Item"].isin(selected_items) & data["Year"].eq(comparison_year)]
+        data[data["Item"].isin(context_items) & data["Year"].eq(comparison_year)]
         .groupby("Area", as_index=False)["Value"]
         .sum()
         .sort_values("Value", ascending=False)
@@ -242,7 +245,7 @@ def build_assistant_context(
     )
 
     top_crops = ", ".join(
-        f"{row.Item}: {format_tonnes(float(row.Value))}"
+        f"{row.Area} - {row.Item}: {format_tonnes(float(row.Value))}"
         for row in latest.itertuples(index=False)
     ) or "No selected crop rows"
     top_countries = ", ".join(
@@ -253,14 +256,36 @@ def build_assistant_context(
     return "\n".join(
         [
             f"Dashboard country: {country}",
-            f"Selected crops: {', '.join(selected_items) or 'None'}",
+            f"Countries to compare: {', '.join(context_areas)}",
+            f"Crops to compare: {', '.join(context_items) or 'None'}",
+            f"Selected crops on dashboard: {', '.join(selected_items) or 'None'}",
             f"Selected year range: {year_range[0]}-{year_range[1]}",
             f"Year used for the map and country rankings: {comparison_year}",
-            f"Top selected crops in {country} for {latest_year}: {top_crops}",
+            f"Country crop values for {latest_year}: {top_crops}",
             f"Top countries for selected crops in {comparison_year}: {top_countries}",
             f"Data source note: {source_note}",
         ]
     )
+
+
+def build_context_areas(data: pd.DataFrame, selected_country: str, question: str) -> list[str]:
+    areas = [selected_country]
+    question_text = question.casefold()
+    for area in sorted(data["Area"].dropna().unique(), key=len, reverse=True):
+        area_text = str(area)
+        if area_text.casefold() in question_text and area_text not in areas:
+            areas.append(area_text)
+    return areas
+
+
+def build_context_items(data: pd.DataFrame, selected_items: list[str], question: str) -> list[str]:
+    items = list(selected_items)
+    question_text = question.casefold()
+    for item in sorted(data["Item"].dropna().unique(), key=len, reverse=True):
+        item_text = str(item)
+        if item_text.casefold() in question_text and item_text not in items:
+            items.append(item_text)
+    return items
 
 
 def ask_groq(question: str, context: str, api_key: str, model: str) -> str:
@@ -462,14 +487,6 @@ def main() -> None:
                 hide_index=True,
             )
 
-    context = build_assistant_context(
-        data=data,
-        country=country,
-        selected_items=selected_items,
-        year_range=year_range,
-        comparison_year=map_year,
-        source_note=source_note,
-    )
     with assistant_tab:
         st.subheader("Ask About This Dashboard")
         st.caption("Ask about the selected country, crops, map, rankings, or trends.")
@@ -486,6 +503,15 @@ def main() -> None:
             elif not groq_api_key:
                 st.warning("The AI assistant is not configured yet. Add GROQ_API_KEY in Streamlit secrets.")
             else:
+                context = build_assistant_context(
+                    data=data,
+                    country=country,
+                    selected_items=selected_items,
+                    year_range=year_range,
+                    comparison_year=map_year,
+                    source_note=source_note,
+                    question=question,
+                )
                 with st.spinner("Asking AI assistant..."):
                     try:
                         answer = ask_groq(question, context, groq_api_key, groq_model)
