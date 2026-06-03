@@ -14,7 +14,8 @@ Data: **UN FAO — FAOSTAT**, *Production: Crops and livestock products*
 
 ## What it does
 > **Clean tabbed UI** — 🗺️ World map · 🔎 Country deep-dive (with KPI cards) ·
-> 🤖 Ask AI · ℹ️ About — with an earthy theme and a hero header.
+> ℹ️ About — with an earthy theme, a hero header, and a floating **🌱 Ask AI**
+> button (bottom-right) that opens the assistant in a pop-up.
 
 - **World choropleth** with a year **slider + ▶ play button** to animate
   1961 → 2024.
