@@ -98,12 +98,16 @@ def _mentioned_countries(df: pd.DataFrame, question: str,
 
 
 def build_context(df: pd.DataFrame, country: str, year: int,
-                  top_n: int = 8, question: str | None = None) -> str:
+                  top_n: int = 8, question: str | None = None,
+                  include_world: bool = True) -> str:
     """A compact, factual snapshot the model can reason over.
 
     When ``question`` is given, the context also includes any countries named
     in the question (with their top products), so the assistant can answer
-    about countries other than the selected one.
+    about countries other than the selected one. Set ``include_world=False``
+    to omit the (large) per-country table — used for the tool-calling answer
+    path, where the model can query the data on demand and we keep each request
+    small to stay within the free-tier tokens-per-minute limit.
     """
     lines = [
         "DATASET: UN FAO FAOSTAT 'Production: Crops and livestock products', "
@@ -158,13 +162,16 @@ def build_context(df: pd.DataFrame, country: str, year: int,
 
     # Every country's #1 product this year, so the model can answer about ANY
     # country (e.g. Japan) and "which countries' top product is X" questions.
-    top_by_country = (g.sort_values("value_tonnes", ascending=False)
-                      .groupby("country", sort=True).first())
-    lines.append(f"\nWORLD — each country's #1 product in {year} "
-                 "(country: product, Mt):")
-    for cname, r in top_by_country.sort_index().iterrows():
-        lines.append(f"  - {cname}: {r['item'].split(',')[0]} "
-                     f"({_mt(r['value_tonnes'])})")
+    # Omitted on the tool-calling path (the model queries instead) to keep
+    # requests small and avoid the free-tier tokens-per-minute limit.
+    if include_world:
+        top_by_country = (g.sort_values("value_tonnes", ascending=False)
+                          .groupby("country", sort=True).first())
+        lines.append(f"\nWORLD — each country's #1 product in {year} "
+                     "(country: product, Mt):")
+        for cname, r in top_by_country.sort_index().iterrows():
+            lines.append(f"  - {cname}: {r['item'].split(',')[0]} "
+                         f"({_mt(r['value_tonnes'])})")
 
     # Deeper detail for any countries explicitly named in the question.
     if question:
@@ -201,6 +208,10 @@ def _post(messages: list[dict], tools: list | None = None,
                  "Content-Type": "application/json"},
         json=payload, timeout=60,
     )
+    if resp.status_code == 429:
+        raise RuntimeError(
+            "Groq free-tier rate limit hit (tokens-per-minute). "
+            "Please wait ~15 seconds and ask again.")
     if resp.status_code != 200:
         raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text[:300]}")
     return resp.json()
@@ -347,7 +358,7 @@ def answer_question(question: str, context: str,
     use_tools = TOOLS if df is not None else None
     last = {}
     for _ in range(5):  # allow a few tool round-trips
-        data = _post(messages, tools=use_tools)
+        data = _post(messages, tools=use_tools, max_tokens=600)
         last = data["choices"][0]["message"]
         calls = last.get("tool_calls")
         if not calls:

@@ -376,9 +376,11 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         submitted = st.form_submit_button("Ask")
     if submitted and q:
         st.session_state["chat"].append({"role": "user", "content": q})
-        # Build a question-aware context so countries named in the question
-        # (e.g. "Japan") are included, not just the selected country.
-        qctx = A.build_context(df, country, year, top_n, question=q)
+        # Build a slim, question-aware context (no big world table) — the model
+        # uses tools for anything else, keeping each request small enough to
+        # stay under the free-tier tokens-per-minute limit.
+        qctx = A.build_context(df, country, year, top_n, question=q,
+                               include_world=False)
         with st.spinner("Thinking…"):
             try:
                 ans = A.answer_question(q, qctx,
