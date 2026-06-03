@@ -731,15 +731,74 @@ def inject_dashboard_css() -> None:
             top: 48vh;
             z-index: 1002;
         }
+        .st-key-floating_ai_button::before {
+            content: "";
+            position: absolute;
+            inset: -9px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(111, 160, 85, 0.28), rgba(111, 160, 85, 0));
+            animation: assistant-pulse 3.4s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .st-key-floating_ai_button::after {
+            content: "Ask crop AI";
+            position: absolute;
+            left: 4.45rem;
+            top: 50%;
+            transform: translateY(-50%) translateX(-6px);
+            opacity: 0;
+            white-space: nowrap;
+            padding: 0.45rem 0.65rem;
+            border: 1px solid #d9e5cb;
+            border-radius: 999px;
+            background: #fffdf7;
+            color: #33533a;
+            box-shadow: 0 10px 26px rgba(34, 66, 39, 0.16);
+            font-size: 0.82rem;
+            font-weight: 750;
+            transition: opacity 160ms ease, transform 160ms ease;
+            pointer-events: none;
+        }
+        .st-key-floating_ai_button:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
         .st-key-floating_ai_button button {
             border-radius: 999px;
-            min-height: 3.25rem;
-            padding: 0 1rem;
-            border: 1px solid #3f7d46;
-            background: #3f7d46;
+            width: 3.9rem;
+            min-width: 3.9rem;
+            height: 3.9rem;
+            min-height: 3.9rem;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            background:
+                radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 34%),
+                linear-gradient(145deg, #89b45c 0%, #3f7d46 52%, #1f5332 100%);
             color: #ffffff;
-            box-shadow: 0 12px 32px rgba(63, 125, 70, 0.3);
+            box-shadow:
+                0 16px 34px rgba(39, 91, 48, 0.32),
+                inset 0 1px 0 rgba(255, 255, 255, 0.36),
+                inset 0 -8px 18px rgba(21, 67, 37, 0.24);
             font-weight: 700;
+            transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+        }
+        .st-key-floating_ai_button button:hover {
+            transform: translateY(-2px) scale(1.035);
+            filter: saturate(1.06);
+            box-shadow:
+                0 20px 42px rgba(39, 91, 48, 0.38),
+                inset 0 1px 0 rgba(255, 255, 255, 0.42),
+                inset 0 -8px 18px rgba(21, 67, 37, 0.22);
+        }
+        .st-key-floating_ai_button button:active {
+            transform: translateY(0) scale(0.98);
+        }
+        .st-key-floating_ai_button button p {
+            display: none;
+        }
+        .st-key-floating_ai_button button span {
+            font-size: 1.85rem;
+            margin: 0;
         }
         .st-key-floating_ai_panel {
             position: fixed;
@@ -785,11 +844,24 @@ def inject_dashboard_css() -> None:
                 left: 0.75rem;
                 top: 56vh;
             }
+            .st-key-floating_ai_button::after {
+                display: none;
+            }
             .st-key-floating_ai_panel {
                 left: 0.75rem;
                 top: 16vh;
                 width: calc(100vw - 1.5rem);
                 max-height: 72vh;
+            }
+        }
+        @keyframes assistant-pulse {
+            0%, 100% {
+                opacity: 0.42;
+                transform: scale(0.94);
+            }
+            50% {
+                opacity: 0.86;
+                transform: scale(1.08);
             }
         }
         </style>
@@ -831,7 +903,7 @@ def render_floating_assistant(
     )
 
     if st.button(
-        "Ask",
+        "Crop AI",
         key="floating_ai_button",
         icon=":material/local_florist:",
         help="Open the AI assistant from any dashboard view.",
