@@ -21,7 +21,15 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+try:  # load XAI_API_KEY etc. from a local .env if present
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:
+    pass
+
 from src import categories as C
+from src import assistant as A
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data" / "processed" / "production.parquet"
@@ -240,6 +248,61 @@ def main() -> None:
                        xaxis_title="", yaxis_title="Million tonnes",
                        legend_title_text=legend_title)
     st.plotly_chart(area, use_container_width=True)
+
+    # ---- AI data assistant (Grok) ----
+    st.divider()
+    render_assistant(df, country, year, top_n)
+
+
+def render_assistant(df: pd.DataFrame, country: str, year: int,
+                     top_n: int) -> None:
+    st.subheader("🤖 Ask the data assistant (Grok)")
+    if not A.get_api_key():
+        st.info(
+            "Add your **xAI (Grok) API key** to turn on the assistant.\n\n"
+            "- **Locally:** create a `.env` file with `XAI_API_KEY=xai-...` "
+            "(see `.env.example`).\n"
+            "- **On Streamlit Cloud:** *Manage app → Settings → Secrets* and add "
+            "`XAI_API_KEY = \"xai-...\"`.\n\n"
+            "Get a key at https://console.x.ai — then reload."
+        )
+        return
+
+    st.caption(
+        f"Grounded in the data for **{country}, {year}** plus that year's global "
+        "leaders. Ask things like *“Why is sugar cane India's top crop?”* or "
+        "*“How has its production mix changed since 1961?”*"
+    )
+    context = A.build_context(df, country, year, top_n)
+
+    if st.button(f"💡 Generate insights for {country}"):
+        with st.spinner("Asking Grok…"):
+            try:
+                st.session_state["insight"] = A.generate_insights(context, country)
+            except Exception as e:  # noqa: BLE001
+                st.session_state["insight"] = f"⚠️ {e}"
+    if st.session_state.get("insight"):
+        st.markdown(st.session_state["insight"])
+
+    st.session_state.setdefault("chat", [])
+    for m in st.session_state["chat"]:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    with st.form("assistant_form", clear_on_submit=True):
+        q = st.text_input(f"Ask about {country} or the data",
+                          placeholder="Type a question…")
+        submitted = st.form_submit_button("Ask Grok")
+    if submitted and q:
+        st.session_state["chat"].append({"role": "user", "content": q})
+        history = st.session_state["chat"][:-1][-6:]
+        with st.spinner("Grok is thinking…"):
+            try:
+                ans = A.answer_question(q, context, history)
+            except Exception as e:  # noqa: BLE001
+                ans = f"⚠️ Couldn't reach Grok: {e}"
+        st.session_state["chat"].append({"role": "assistant", "content": ans})
+        st.rerun()
 
 
 METHOD_NOTES = """
