@@ -134,6 +134,21 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn("2000-2024", summary)
         self.assertIn("FAOSTAT live", summary)
 
+    def test_build_crop_tile_options_keeps_selected_items_and_top_crops(self):
+        data = pd.DataFrame(
+            [
+                ("Japan", "Rice", 2024, 100),
+                ("Japan", "Wheat", 2024, 80),
+                ("Japan", "Maize", 2024, 60),
+                ("Japan", "Barley", 2024, 40),
+            ],
+            columns=["Area", "Item", "Year", "Value"],
+        )
+
+        options = main.build_crop_tile_options(data, ["Barley"], limit=2)
+
+        self.assertEqual(options, ["Rice", "Wheat", "Barley"])
+
 
 if __name__ == "__main__":
     unittest.main()

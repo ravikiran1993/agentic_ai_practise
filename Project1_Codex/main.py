@@ -334,6 +334,21 @@ def summarize_filter_state(
     return f"{country} | {selected_group} | {crop_label} | {year_range[0]}-{year_range[1]} | {data_label}"
 
 
+def build_crop_tile_options(data: pd.DataFrame, selected_items: list[str], limit: int = 18) -> list[str]:
+    top_items = (
+        data.groupby("Item")["Value"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(limit)
+        .index.tolist()
+    )
+    options = list(top_items)
+    for item in selected_items:
+        if item not in options:
+            options.append(item)
+    return options
+
+
 def inject_dashboard_css() -> None:
     st.markdown(
         """
@@ -434,21 +449,21 @@ def main() -> None:
     map_year = year_range[1]
 
     view_summary = summarize_filter_state(country, selected_group, selected_items, year_range, is_live)
-    view_col, action_col = st.columns([5, 1])
-    with view_col:
-        st.markdown(
-            f"""
-            <div class="view-bar">
-                <div>
-                    <div class="view-label">Current view</div>
-                    <div class="view-summary">{escape(view_summary)}</div>
-                </div>
+    st.markdown(
+        f"""
+        <div class="view-bar">
+            <div>
+                <div class="view-label">Current view</div>
+                <div class="view-summary">{escape(view_summary)}</div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with action_col:
-        with st.popover("Refine view", width="stretch"):
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.container(border=True):
+        country_col, year_col = st.columns([1, 2])
+        with country_col:
             country = st.selectbox(
                 "Country",
                 countries,
@@ -456,32 +471,7 @@ def main() -> None:
                 key="country",
                 help=f"{len(countries):,} countries and FAOSTAT areas loaded.",
             )
-            country_data = data[data["Area"].eq(country)]
-            items = sorted(country_data["Item"].dropna().unique())
-            group_choices = group_options(items)
-            if selected_group not in group_choices:
-                selected_group = "All crops"
-            selected_group = st.selectbox(
-                "Crop group",
-                group_choices,
-                index=group_choices.index(selected_group),
-                key="selected_group",
-            )
-            grouped_country_data = apply_group_filter(country_data, selected_group)
-            available_items = sorted(grouped_country_data["Item"].dropna().unique())
-            default_items = (
-                grouped_country_data.groupby("Item")["Value"]
-                .sum()
-                .sort_values(ascending=False)
-                .head(6)
-                .index.tolist()
-            )
-            selected_items = st.multiselect(
-                "Crops",
-                available_items,
-                default=[item for item in selected_items if item in available_items] or default_items,
-                key="selected_items",
-            )
+        with year_col:
             year_range = st.slider(
                 "Year range",
                 min_year,
@@ -490,6 +480,40 @@ def main() -> None:
                 key="year_range",
             )
             map_year = year_range[1]
+
+        country_data = data[data["Area"].eq(country)]
+        items = sorted(country_data["Item"].dropna().unique())
+        group_choices = group_options(items)
+        if selected_group not in group_choices:
+            selected_group = "All crops"
+        selected_group = st.segmented_control(
+            "Crop group",
+            group_choices,
+            default=selected_group,
+            selection_mode="single",
+            key="selected_group",
+            width="stretch",
+        ) or "All crops"
+        grouped_country_data = apply_group_filter(country_data, selected_group)
+        available_items = sorted(grouped_country_data["Item"].dropna().unique())
+        default_items = (
+            grouped_country_data.groupby("Item")["Value"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(6)
+            .index.tolist()
+        )
+        tile_options = build_crop_tile_options(grouped_country_data, selected_items, limit=18)
+        selected_items = st.pills(
+            "Crops",
+            tile_options,
+            selection_mode="multi",
+            default=[item for item in selected_items if item in tile_options] or default_items[:6],
+            key="selected_items",
+            width="stretch",
+            help="Click crops to add or remove them from the map, charts, and rankings.",
+        )
+        selected_items = [item for item in selected_items if item in available_items] or default_items
 
     filtered = grouped_country_data[
         grouped_country_data["Item"].isin(selected_items)
