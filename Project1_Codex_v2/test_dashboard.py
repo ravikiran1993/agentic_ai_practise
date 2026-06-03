@@ -325,6 +325,16 @@ class DashboardDataTests(unittest.TestCase):
             fallback,
         )
 
+    def test_friendly_groq_error_simplifies_rate_limit_message(self):
+        response = Mock()
+        response.status_code = 429
+        error = main.requests.HTTPError(response=response)
+
+        message = main.friendly_groq_error(error)
+
+        self.assertIn("usage limit", message)
+        self.assertNotIn("tokens", message.casefold())
+
     @patch("main.requests.post")
     def test_generate_llm_insights_uses_groq_response_when_available(self, mock_post):
         response = Mock()

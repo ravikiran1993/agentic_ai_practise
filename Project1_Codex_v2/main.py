@@ -318,6 +318,20 @@ def ask_groq(question: str, context: str, api_key: str, model: str) -> str:
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
+def friendly_groq_error(exc: requests.HTTPError) -> str:
+    status_code = exc.response.status_code if exc.response is not None else None
+    if status_code == 429:
+        return (
+            "The AI assistant has reached today's Groq usage limit. "
+            "Please try again later, or switch to a Groq key with more daily capacity."
+        )
+    if status_code in {401, 403}:
+        return "The AI assistant key is not authorized. Please check the Groq API key in Streamlit secrets."
+    if status_code is not None:
+        return f"The AI assistant could not answer right now. Groq returned status {status_code}."
+    return "The AI assistant could not answer right now. Please try again."
+
+
 def get_secret_value(name: str, default: str = "") -> str:
     try:
         value = st.secrets.get(name, "")
@@ -1264,6 +1278,61 @@ def inject_dashboard_css() -> None:
             letter-spacing: 0.05em;
             margin-top: 0.45rem;
         }
+        .st-key-floating_ai_panel .selected-crop-strip {
+            margin-top: 0.65rem;
+            margin-bottom: 0.7rem;
+            background: rgba(7, 12, 20, 0.84);
+            border-color: rgba(204, 255, 90, 0.28);
+        }
+        .st-key-floating_suggested_question button,
+        .st-key-floating_suggested_question [role="button"],
+        .st-key-floating_suggested_question [data-testid*="stBaseButton"] {
+            color: #f5f7ef !important;
+            background: #111827 !important;
+            border: 1px solid rgba(156, 176, 204, 0.42) !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+            white-space: normal !important;
+            min-height: 3rem;
+        }
+        .st-key-floating_suggested_question button *,
+        .st-key-floating_suggested_question [role="button"] *,
+        .st-key-floating_suggested_question [data-testid*="stBaseButton"] * {
+            color: #f5f7ef !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+        }
+        .st-key-floating_suggested_question button[aria-pressed="true"],
+        .st-key-floating_suggested_question button[aria-selected="true"],
+        .st-key-floating_suggested_question button[aria-checked="true"],
+        .st-key-floating_suggested_question [role="button"][aria-pressed="true"],
+        .st-key-floating_suggested_question [role="button"][aria-selected="true"],
+        .st-key-floating_suggested_question [role="button"][aria-checked="true"] {
+            color: #07100c !important;
+            background: linear-gradient(135deg, var(--lime), var(--green)) !important;
+            border-color: transparent !important;
+        }
+        .st-key-floating_suggested_question button[aria-pressed="true"] *,
+        .st-key-floating_suggested_question button[aria-selected="true"] *,
+        .st-key-floating_suggested_question button[aria-checked="true"] *,
+        .st-key-floating_suggested_question [role="button"][aria-pressed="true"] *,
+        .st-key-floating_suggested_question [role="button"][aria-selected="true"] *,
+        .st-key-floating_suggested_question [role="button"][aria-checked="true"] * {
+            color: #07100c !important;
+            font-weight: 900 !important;
+            opacity: 1 !important;
+        }
+        .st-key-floating_ai_panel div[data-testid="stAlert"] {
+            color: #f5f7ef;
+            background: rgba(68, 32, 47, 0.82);
+            border: 1px solid rgba(255, 127, 132, 0.32);
+            border-radius: 10px;
+        }
+        .st-key-floating_ai_panel div[data-testid="stAlert"] * {
+            color: #f5f7ef !important;
+            opacity: 1 !important;
+        }
         @media (max-width: 640px) {
             .st-key-floating_ai_button {
                 left: 0.75rem;
@@ -1410,7 +1479,7 @@ def render_floating_assistant(
                             groq_model,
                         )
                     except requests.HTTPError as exc:
-                        st.error(f"AI assistant request failed: {exc.response.status_code} {exc.response.text}")
+                        st.error(friendly_groq_error(exc))
                     except Exception as exc:
                         st.error(f"AI assistant failed: {exc}")
 
