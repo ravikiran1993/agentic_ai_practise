@@ -966,6 +966,47 @@ def inject_dashboard_css() -> None:
         div[data-testid="stPills"] button p {
             color: inherit !important;
         }
+        .st-key-selected_items {
+            background: rgba(7, 12, 20, 0.42);
+            border: 1px solid rgba(156, 176, 204, 0.18);
+            border-radius: 10px;
+            padding: 0.35rem;
+        }
+        .st-key-selected_items button,
+        .st-key-selected_items [role="button"],
+        .st-key-selected_items [data-testid*="stBaseButton"] {
+            color: #f5f7ef !important;
+            background: #111827 !important;
+            border: 1px solid rgba(156, 176, 204, 0.42) !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+        }
+        .st-key-selected_items button *,
+        .st-key-selected_items [role="button"] *,
+        .st-key-selected_items [data-testid*="stBaseButton"] * {
+            color: #f5f7ef !important;
+            opacity: 1 !important;
+            font-weight: 850 !important;
+        }
+        .st-key-selected_items button[aria-pressed="true"],
+        .st-key-selected_items button[aria-selected="true"],
+        .st-key-selected_items button[aria-checked="true"],
+        .st-key-selected_items [role="button"][aria-pressed="true"],
+        .st-key-selected_items [role="button"][aria-selected="true"],
+        .st-key-selected_items [role="button"][aria-checked="true"] {
+            color: #07100c !important;
+            background: linear-gradient(135deg, var(--lime), var(--green)) !important;
+            border-color: transparent !important;
+        }
+        .st-key-selected_items button[aria-pressed="true"] *,
+        .st-key-selected_items button[aria-selected="true"] *,
+        .st-key-selected_items button[aria-checked="true"] *,
+        .st-key-selected_items [role="button"][aria-pressed="true"] *,
+        .st-key-selected_items [role="button"][aria-selected="true"] *,
+        .st-key-selected_items [role="button"][aria-checked="true"] * {
+            color: #07100c !important;
+        }
         div[data-testid="stButton"] button,
         div[data-testid="stDownloadButton"] button {
             border-radius: 8px;
