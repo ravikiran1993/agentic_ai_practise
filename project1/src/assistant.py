@@ -57,9 +57,50 @@ def _mt(v: float) -> str:
     return f"{v / 1e6:,.1f}"
 
 
+_ALIASES = {
+    "usa": "United States of America", "u.s.": "United States of America",
+    "us": "United States of America", "america": "United States of America",
+    "uk": "United Kingdom of Great Britain and Northern Ireland",
+    "britain": "United Kingdom of Great Britain and Northern Ireland",
+    "england": "United Kingdom of Great Britain and Northern Ireland",
+    "russia": "Russian Federation", "china": "China, mainland",
+    "south korea": "Republic of Korea", "north korea":
+    "Democratic People's Republic of Korea", "iran":
+    "Iran (Islamic Republic of)", "uae": "United Arab Emirates",
+    "vietnam": "Viet Nam", "tanzania": "United Republic of Tanzania",
+    "bolivia": "Bolivia (Plurinational State of)",
+    "venezuela": "Venezuela (Bolivarian Republic of)", "syria":
+    "Syrian Arab Republic", "laos": "Lao People's Democratic Republic",
+}
+
+
+def _mentioned_countries(df: pd.DataFrame, question: str,
+                         exclude: str | None = None) -> list[str]:
+    """Country names referenced in the user's question (best-effort match)."""
+    ql = f" {question.lower()} "
+    names = list(df["country"].unique())
+    hits = []
+    for n in names:
+        key = n.lower()
+        short = key.split(",")[0].split("(")[0].strip()
+        if key in ql or (len(short) > 3 and f" {short} " in ql):
+            hits.append(n)
+    for alias, full in _ALIASES.items():
+        if f" {alias} " in ql and full in names and full not in hits:
+            hits.append(full)
+    if exclude:
+        hits = [h for h in hits if h != exclude]
+    return list(dict.fromkeys(hits))
+
+
 def build_context(df: pd.DataFrame, country: str, year: int,
-                  top_n: int = 8) -> str:
-    """A compact, factual snapshot the model can reason over."""
+                  top_n: int = 8, question: str | None = None) -> str:
+    """A compact, factual snapshot the model can reason over.
+
+    When ``question`` is given, the context also includes any countries named
+    in the question (with their top products), so the assistant can answer
+    about countries other than the selected one.
+    """
     lines = [
         "DATASET: UN FAO FAOSTAT 'Production: Crops and livestock products', "
         "production quantity in tonnes, 1961-2024, ~200 countries. All figures "
@@ -110,6 +151,28 @@ def build_context(df: pd.DataFrame, country: str, year: int,
     if leaders:
         lines.append(f"World's top producer by commodity in {year}: "
                      + "; ".join(leaders))
+
+    # Every country's #1 product this year, so the model can answer about ANY
+    # country (e.g. Japan) and "which countries' top product is X" questions.
+    top_by_country = (g.sort_values("value_tonnes", ascending=False)
+                      .groupby("country", sort=True).first())
+    lines.append(f"\nWORLD — each country's #1 product in {year} "
+                 "(country: product, Mt):")
+    for cname, r in top_by_country.sort_index().iterrows():
+        lines.append(f"  - {cname}: {r['item'].split(',')[0]} "
+                     f"({_mt(r['value_tonnes'])})")
+
+    # Deeper detail for any countries explicitly named in the question.
+    if question:
+        for mc in _mentioned_countries(df, question, exclude=country)[:3]:
+            md = df[(df["country"] == mc) & (df["year"] == year)].nlargest(
+                top_n, "value_tonnes")
+            if md.empty:
+                continue
+            lines.append(f"\n{mc} — top {len(md)} products in {year}:")
+            for _, r in md.iterrows():
+                lines.append(f"  - {r['item']} ({r['category']}): "
+                             f"{_mt(r['value_tonnes'])} Mt")
 
     return "\n".join(lines)
 

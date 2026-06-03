@@ -376,9 +376,12 @@ def render_assistant(df: pd.DataFrame, country: str, year: int,
         submitted = st.form_submit_button("Ask")
     if submitted and q:
         st.session_state["chat"].append({"role": "user", "content": q})
+        # Build a question-aware context so countries named in the question
+        # (e.g. "Japan") are included, not just the selected country.
+        qctx = A.build_context(df, country, year, top_n, question=q)
         with st.spinner("Thinking…"):
             try:
-                ans = A.answer_question(q, context,
+                ans = A.answer_question(q, qctx,
                                         st.session_state["chat"][:-1][-6:])
             except Exception as e:  # noqa: BLE001
                 ans = f"⚠️ Couldn't reach the assistant: {e}"

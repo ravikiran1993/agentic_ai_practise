@@ -140,8 +140,12 @@ streamlit run app.py            # launch the dashboard
 The dashboard has a built-in assistant (powered by **Groq's free API**) that
 answers questions and generates insights about the data. For each question it
 sends the model a compact, factual context built from the dataframe — the
-selected country's top products and long-run trend, plus that year's global
-leaders — so answers cite real figures (in million tonnes).
+selected country's top products and long-run trend, that year's global
+leaders, **every country's #1 product for the year**, plus full detail for any
+**countries named in your question** (e.g. "compare India and Japan") — so
+answers cite real figures (in million tonnes) for any country, not just the
+selected one. (The full ~770k-row dataset is far too large to send to an LLM,
+so it reasons over this focused summary.)
 
 > **Groq vs Grok:** "Groq" (used here) is a *free* inference service running
 > open models — not "Grok" (xAI's paid model). Easy to mix up!
