@@ -727,24 +727,24 @@ def inject_dashboard_css() -> None:
         }
         .st-key-floating_ai_button {
             position: fixed;
-            right: 1.35rem;
-            bottom: 1.25rem;
+            left: 1rem;
+            top: 1rem;
             z-index: 1002;
         }
         .st-key-floating_ai_button button {
             border-radius: 999px;
             min-height: 3.25rem;
-            padding: 0 1.15rem;
-            border: 1px solid #2f302c;
-            background: #2f302c;
+            padding: 0 1rem;
+            border: 1px solid #3f7d46;
+            background: #3f7d46;
             color: #ffffff;
-            box-shadow: 0 12px 32px rgba(20, 20, 20, 0.22);
+            box-shadow: 0 12px 32px rgba(63, 125, 70, 0.3);
             font-weight: 700;
         }
         .st-key-floating_ai_panel {
             position: fixed;
-            right: 1.35rem;
-            bottom: 5.2rem;
+            left: 1rem;
+            top: 5rem;
             z-index: 1001;
             width: min(430px, calc(100vw - 2rem));
             max-height: min(74vh, 680px);
@@ -773,15 +773,22 @@ def inject_dashboard_css() -> None:
             font-size: 0.9rem;
             line-height: 1.35;
         }
+        .assistant-dock-label {
+            color: #77746b;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.45rem;
+        }
         @media (max-width: 640px) {
             .st-key-floating_ai_button {
-                right: 1rem;
-                bottom: 1rem;
+                left: 0.75rem;
+                top: 1rem;
             }
             .st-key-floating_ai_panel {
-                right: 1rem;
-                bottom: 4.85rem;
-                width: calc(100vw - 2rem);
+                left: 0.75rem;
+                top: 4.75rem;
+                width: calc(100vw - 1.5rem);
                 max-height: 72vh;
             }
         }
@@ -803,11 +810,29 @@ def render_floating_assistant(
 ) -> None:
     if "assistant_open" not in st.session_state:
         st.session_state["assistant_open"] = False
+    if "assistant_dock_y" not in st.session_state:
+        st.session_state["assistant_dock_y"] = 4
+
+    dock_y = int(st.session_state.get("assistant_dock_y", 4))
+    panel_y = min(dock_y + 8, 22)
+    st.markdown(
+        f"""
+        <style>
+        .st-key-floating_ai_button {{
+            top: {dock_y}vh;
+        }}
+        .st-key-floating_ai_panel {{
+            top: {panel_y}vh;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if st.button(
-        "Ask AI",
+        "Ask",
         key="floating_ai_button",
-        icon=":material/smart_toy:",
+        icon=":material/local_florist:",
         help="Open the AI assistant from any dashboard view.",
     ):
         st.session_state["assistant_open"] = not st.session_state["assistant_open"]
@@ -830,6 +855,18 @@ def render_floating_assistant(
             if st.button("x", key="close_floating_ai", help="Close assistant"):
                 st.session_state["assistant_open"] = False
                 st.rerun()
+
+        st.markdown('<div class="assistant-dock-label">Park on left edge</div>', unsafe_allow_html=True)
+        st.slider(
+            "Assistant position",
+            min_value=4,
+            max_value=72,
+            value=dock_y,
+            step=4,
+            key="assistant_dock_y",
+            label_visibility="collapsed",
+            help="Move the plant assistant up or down the left edge.",
+        )
 
         suggested_questions = build_suggested_questions(country, selected_items, year_range)
         suggestion = st.pills(
