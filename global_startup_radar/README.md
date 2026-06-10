@@ -143,7 +143,9 @@ GEMINI_MODEL=gemini-2.5-flash
 streamlit run app.py
 ```
 
-By default, the app runs in demo mode using `data/sample_startups.json`. This means the project can be opened and understood even before API keys are configured.
+By default, the app runs in demo mode using `data/sample_startups.json`. This means the project can be opened and understood even before API keys are configured. Demo mode contains five sample startups.
+
+To use live startup data, switch **Data mode** in the sidebar from **Demo sample** to **Live Product Hunt**. The app will use `PRODUCT_HUNT_TOKEN` from `.env`, fetch recent Product Hunt launches, normalize them, chunk them, rerank them, and feed them into the same chat and behind-the-scenes RAG trace.
 
 Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. The app keeps the conversation visible, while the right panel updates to show the evidence retrieved for the latest question.
 
