@@ -19,6 +19,7 @@ The dashboard returns:
 - a ranked startup table
 - trend scores
 - evidence snippets
+- a behind-the-scenes RAG trace for each question
 - source URLs
 - charts by sector/source/region
 - a prompt preview or live Gemini-generated answer
@@ -145,6 +146,8 @@ streamlit run app.py
 By default, the app runs in demo mode using `data/sample_startups.json`. This means the project can be opened and understood even before API keys are configured.
 
 Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. The app keeps the conversation visible, while the right panel updates to show the evidence retrieved for the latest question.
+
+The **Behind the scenes** panel shows how each question moves through the RAG pipeline: incoming chunks, embedding representation notes, reranked evidence order, scores, and the exact prompt sent to the LLM.
 
 ## Running Tests
 

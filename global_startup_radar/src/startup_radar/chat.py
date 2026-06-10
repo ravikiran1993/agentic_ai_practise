@@ -10,6 +10,7 @@ def create_chat_turn(
     answer: str,
     evidence: list[RetrievedEvidence],
     mode: str,
+    trace: dict | None = None,
 ) -> dict[str, Any]:
     """Create a serializable chat turn for Streamlit session state."""
     return {
@@ -17,6 +18,7 @@ def create_chat_turn(
         "answer": answer,
         "evidence": evidence,
         "mode": mode,
+        "trace": trace or {},
     }
 
 

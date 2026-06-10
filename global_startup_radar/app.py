@@ -17,6 +17,7 @@ from startup_radar.ingestion.sample_data import load_sample_records
 from startup_radar.models import RetrievedEvidence
 from startup_radar.rag import build_answer_prompt, generate_answer
 from startup_radar.reranking import rerank_evidence
+from startup_radar.trace import build_rag_trace
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -104,11 +105,14 @@ with st.sidebar:
     if st.button("Clear chat", use_container_width=True):
         st.session_state.chat_history = []
         st.session_state.latest_evidence = []
+        st.session_state.latest_trace = {}
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "latest_evidence" not in st.session_state:
     st.session_state.latest_evidence = []
+if "latest_trace" not in st.session_state:
+    st.session_state.latest_trace = {}
 
 default_query = "Which global AI startups are trending and why?"
 
@@ -132,22 +136,26 @@ with left:
 
     prompt = st.chat_input("Ask a follow-up about emerging startups")
     if prompt:
+        turn_candidates = filtered
         turn_ranked = rerank_evidence(filtered, query=prompt, today="2026-06-10")
         turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
+        final_prompt = build_answer_prompt(prompt, turn_ranked[:8]) if turn_ranked else ""
         if not turn_ranked:
             answer = "No matching evidence was found for this question and filter set."
         elif answer_mode == "Live Gemini call":
             try:
                 answer = generate_answer(prompt, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
             except Exception as exc:
-                answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{build_answer_prompt(prompt, turn_ranked[:8])}"
+                answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{final_prompt}"
         else:
-            answer = build_answer_prompt(prompt, turn_ranked[:8])
+            answer = final_prompt
 
+        trace = build_rag_trace(prompt, turn_candidates, turn_ranked[:8], final_prompt)
         st.session_state.latest_evidence = turn_ranked[:8]
+        st.session_state.latest_trace = trace
         st.session_state.chat_history = append_chat_turn(
             st.session_state.chat_history,
-            create_chat_turn(prompt, answer, turn_ranked[:8], answer_mode),
+            create_chat_turn(prompt, answer, turn_ranked[:8], answer_mode, trace),
         )
         st.rerun()
 
@@ -182,3 +190,43 @@ with right:
                     "topics": item.metadata.get("topics"),
                 }
             )
+
+    st.subheader("Behind the scenes")
+    latest_trace = st.session_state.latest_trace
+    if not latest_trace:
+        st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
+    else:
+        st.caption(f"Trace for: {latest_trace['query']}")
+        with st.expander("1. Incoming chunks before reranking", expanded=False):
+            st.dataframe(
+                pd.DataFrame(latest_trace["retrieved_chunks"])[
+                    ["position", "startup_name", "source_type", "similarity_score", "text"]
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        with st.expander("2. Embedding representation", expanded=False):
+            st.write(
+                "In live indexing, each chunk is converted into a Gemini embedding vector and stored in Pinecone. "
+                "The demo dataset uses the same evidence objects without calling Pinecone on every page refresh."
+            )
+            st.json(
+                [
+                    {
+                        "chunk_id": item["chunk_id"],
+                        "startup_name": item["startup_name"],
+                        "embedding_note": item["embedding_note"],
+                    }
+                    for item in latest_trace["retrieved_chunks"]
+                ]
+            )
+        with st.expander("3. Ranking after reranking", expanded=True):
+            st.dataframe(
+                pd.DataFrame(latest_trace["reranked_chunks"])[
+                    ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        with st.expander("4. Exact LLM input", expanded=False):
+            st.code(latest_trace["llm_prompt"], language="markdown")
