@@ -46,7 +46,7 @@ Answer with:
 
 
 def create_chat_model(provider: str = "gemini", model: str | None = None, temperature: float = 0.2):
-    """Create a LangChain chat model for the selected provider."""
+    """Create the Gemini chat model used for live answer generation."""
     normalized = provider.lower().strip()
     if normalized == "gemini":
         try:
@@ -54,12 +54,6 @@ def create_chat_model(provider: str = "gemini", model: str | None = None, temper
         except ImportError as exc:
             raise RuntimeError("Install langchain-google-genai to generate Gemini answers.")
         return ChatGoogleGenerativeAI(model=model or "gemini-1.5-flash", temperature=temperature)
-    if normalized == "openai":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError as exc:
-            raise RuntimeError("Install langchain-openai to generate OpenAI answers.")
-        return ChatOpenAI(model=model or "gpt-4.1-mini", temperature=temperature)
     raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
@@ -69,7 +63,7 @@ def generate_answer(
     provider: str = "gemini",
     model: str | None = None,
 ) -> str:
-    """Generate an answer using the selected LangChain chat provider."""
+    """Generate an answer using Gemini through LangChain."""
     load_environment()
     llm = create_chat_model(provider=provider, model=model)
     response = llm.invoke(build_answer_prompt(query, evidence_items))

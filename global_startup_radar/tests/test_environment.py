@@ -17,12 +17,12 @@ class EnvironmentTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             dotenv_path = Path(tmpdir) / ".env"
-            dotenv_path.write_text("OPENAI_API_KEY=test-key\n", encoding="utf-8")
+            dotenv_path.write_text("GOOGLE_API_KEY=test-key\n", encoding="utf-8")
 
             with patch.dict(os.environ, {}, clear=True):
                 load_environment(dotenv_path)
 
-                self.assertEqual(os.environ["OPENAI_API_KEY"], "test-key")
+                self.assertEqual(os.environ["GOOGLE_API_KEY"], "test-key")
 
 
 if __name__ == "__main__":

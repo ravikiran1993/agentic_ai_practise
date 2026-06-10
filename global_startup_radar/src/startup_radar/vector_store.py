@@ -6,15 +6,15 @@ from startup_radar.models import EvidenceChunk, RetrievedEvidence
 
 
 def create_pinecone_vector_store(index_name: str | None = None):
-    """Create a LangChain Pinecone vector store using OpenAI embeddings."""
+    """Create a LangChain Pinecone vector store using Gemini embeddings."""
     try:
-        from langchain_openai import OpenAIEmbeddings
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
         from langchain_pinecone import PineconeVectorStore
     except ImportError as exc:
-        raise RuntimeError("Install langchain-openai and langchain-pinecone to use Pinecone search.") from exc
+        raise RuntimeError("Install langchain-google-genai and langchain-pinecone to use Pinecone search.") from exc
 
     resolved_index = index_name or os.getenv("PINECONE_INDEX_NAME", "global-startup-radar")
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     return PineconeVectorStore(index_name=resolved_index, embedding=embeddings)
 
 

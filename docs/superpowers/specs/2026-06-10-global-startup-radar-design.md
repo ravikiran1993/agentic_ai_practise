@@ -2,7 +2,7 @@
 
 ## Overview
 
-Global Startup Radar is a Streamlit dashboard and RAG assistant for discovering emerging startups around the world. It uses LangChain for ingestion and orchestration, Pinecone for vector search, Product Hunt as a live trend signal, and an OpenAI API model for cited answer generation.
+Global Startup Radar is a Streamlit dashboard and RAG assistant for discovering emerging startups around the world. It uses LangChain for ingestion and orchestration, Pinecone for vector search, Product Hunt as a live trend signal, and a Gemini API model for cited answer generation.
 
 The project is designed as an MVP that is useful for exploration and strong enough for academic submission. It demonstrates a full RAG pipeline: source ingestion, text cleaning, chunking, metadata enrichment, embedding, vector indexing, semantic retrieval, reranking, trend scoring, and cited synthesis.
 
@@ -81,7 +81,7 @@ The implementation will use environment variables for keys:
 
 - `PRODUCT_HUNT_TOKEN`
 - `PINECONE_API_KEY`
-- `OPENAI_API_KEY`
+- `GOOGLE_API_KEY`
 - `PINECONE_INDEX_NAME`
 
 The app will never hardcode API keys.

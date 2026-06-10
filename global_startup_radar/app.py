@@ -98,7 +98,7 @@ with st.sidebar:
     selected_sectors = st.multiselect("Sectors", all_sectors)
     selected_regions = st.multiselect("Regions", all_regions)
     min_trend_score = st.slider("Minimum trend score", 0, 100, 0)
-    answer_mode = st.radio("Answer mode", ["Prompt preview", "Live Gemini call", "Live OpenAI call"], index=0)
+    answer_mode = st.radio("Answer mode", ["Prompt preview", "Live Gemini call"], index=0)
 
 query = st.text_input(
     "Ask a startup trend question",
@@ -131,12 +131,6 @@ with left:
             st.write(generate_answer(query, ranked[:8], provider="gemini", model="gemini-1.5-flash"))
         except Exception as exc:
             st.warning(f"Live Gemini answer generation is unavailable: {exc}")
-            st.code(build_answer_prompt(query, ranked[:8]), language="markdown")
-    elif answer_mode == "Live OpenAI call":
-        try:
-            st.write(generate_answer(query, ranked[:8], provider="openai", model="gpt-4.1-mini"))
-        except Exception as exc:
-            st.warning(f"Live OpenAI answer generation is unavailable: {exc}")
             st.code(build_answer_prompt(query, ranked[:8]), language="markdown")
     else:
         st.code(build_answer_prompt(query, ranked[:8]), language="markdown")

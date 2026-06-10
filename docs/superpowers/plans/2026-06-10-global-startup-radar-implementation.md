@@ -6,7 +6,7 @@
 
 **Architecture:** The project lives in `global_startup_radar/`. Pure Python modules handle evidence records, chunking, scoring, reranking, Product Hunt ingestion, vector indexing, and RAG answer generation; `app.py` provides the Streamlit dashboard. Tests cover the pure logic so the system can be verified without live API keys.
 
-**Tech Stack:** Python, Streamlit, LangChain, Pinecone, OpenAI API, Product Hunt GraphQL API, unittest.
+**Tech Stack:** Python, Streamlit, LangChain, Pinecone, Gemini API, Product Hunt GraphQL API, unittest.
 
 ---
 

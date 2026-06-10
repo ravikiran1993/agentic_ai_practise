@@ -20,7 +20,7 @@ The dashboard returns:
 - evidence snippets
 - source URLs
 - charts by sector/source/region
-- a prompt preview or live OpenAI-generated answer
+- a prompt preview or live Gemini-generated answer
 
 ## Why This Is More Than A Basic RAG Chatbot
 
@@ -29,7 +29,7 @@ This project includes the full retrieval pipeline:
 1. **Ingestion** from Product Hunt and local/sample startup evidence.
 2. **Normalization** into a common `StartupEvidence` model.
 3. **Chunking** into source-aware evidence chunks.
-4. **Embedding** through LangChain/OpenAI.
+4. **Embedding** through LangChain/Gemini.
 5. **Vector storage** in Pinecone.
 6. **Semantic retrieval** from Pinecone.
 7. **Reranking** using semantic relevance and trend signals.
@@ -131,7 +131,6 @@ Fill in:
 PRODUCT_HUNT_TOKEN=...
 PINECONE_API_KEY=...
 PINECONE_INDEX_NAME=global-startup-radar
-OPENAI_API_KEY=...
 GOOGLE_API_KEY=...
 ```
 
@@ -162,12 +161,9 @@ The tests intentionally focus on pure logic that does not require paid services:
 
 ## LLM Providers
 
-The dashboard supports two live answer providers:
+The dashboard uses Gemini for live answer generation through `GOOGLE_API_KEY`, using `gemini-1.5-flash` by default.
 
-- **Gemini** through `GOOGLE_API_KEY`, using `gemini-1.5-flash` by default.
-- **OpenAI** through `OPENAI_API_KEY`, using `gpt-4.1-mini` by default.
-
-Use **Prompt preview** mode when you want to inspect the retrieved context without spending API credits. Use **Live Gemini call** when OpenAI quota is unavailable.
+Use **Prompt preview** mode when you want to inspect the retrieved context without making any LLM API calls. Use **Live Gemini call** when you want the dashboard to generate a cited answer.
 
 ## Live Integration Path
 
@@ -188,7 +184,7 @@ The live integration path is:
 - Product Hunt ingestion is separate from dashboard rendering.
 - Embeddings and Pinecone writes should be run intentionally, not on every page refresh.
 - The dashboard defaults to prompt preview mode.
-- Live OpenAI calls only happen when the user selects "Live OpenAI call".
+- Live Gemini calls only happen when the user selects "Live Gemini call".
 
 ## Limitations
 
