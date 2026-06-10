@@ -29,8 +29,28 @@ class VectorStoreTests(unittest.TestCase):
             store = create_pinecone_vector_store(index_name="global-startup-radar")
 
         self.assertEqual(store, "vector-store")
-        embeddings_class.assert_called_once_with(model="models/text-embedding-004")
+        embeddings_class.assert_called_once_with(model="models/gemini-embedding-001", output_dimensionality=1024)
         vector_store_class.assert_called_once_with(index_name="global-startup-radar", embedding="embedding-client")
+
+    def test_sanitize_metadata_removes_nulls_and_nested_values(self):
+        from startup_radar.vector_store import sanitize_metadata
+
+        metadata = {
+            "startup_name": "OpsPilot",
+            "country": None,
+            "topics": ["AI", 123, None],
+            "metadata": {"nested": "value"},
+            "votes": 10,
+            "active": True,
+        }
+
+        cleaned = sanitize_metadata(metadata)
+
+        self.assertNotIn("country", cleaned)
+        self.assertNotIn("metadata", cleaned)
+        self.assertEqual(cleaned["topics"], ["AI"])
+        self.assertEqual(cleaned["votes"], 10)
+        self.assertEqual(cleaned["active"], True)
 
 
 if __name__ == "__main__":

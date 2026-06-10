@@ -3,7 +3,7 @@ Practise Repository
 
 ## Projects
 - **[global_startup_radar](global_startup_radar/)** - Global Startup Radar:
-  a Streamlit + LangChain + Pinecone-ready RAG dashboard for discovering
+  a Streamlit + LangChain + Pinecone RAG dashboard for discovering
   emerging global startups from Product Hunt-style launch signals, startup
   profiles, news evidence, and company pages. See
   [global_startup_radar/README.md](global_startup_radar/README.md) for setup,

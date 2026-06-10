@@ -15,10 +15,12 @@ from startup_radar.chunking import chunk_evidence_record
 from startup_radar.environment import load_environment
 from startup_radar.ingestion.sample_data import load_sample_records
 from startup_radar.live_data import load_product_hunt_evidence
+from startup_radar.live_pipeline import build_pinecone_filter, index_evidence, search_indexed_evidence
 from startup_radar.models import RetrievedEvidence
 from startup_radar.rag import build_answer_prompt, generate_answer
 from startup_radar.reranking import rerank_evidence
 from startup_radar.trace import build_rag_trace
+from startup_radar.vector_store import create_pinecone_vector_store
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -53,6 +55,11 @@ def load_demo_evidence() -> list[RetrievedEvidence]:
 @st.cache_data(ttl=900)
 def load_live_product_hunt_evidence(first: int, posted_after: str | None) -> list[RetrievedEvidence]:
     return load_product_hunt_evidence(first=first, posted_after=posted_after or None)
+
+
+@st.cache_resource
+def load_pinecone_store():
+    return create_pinecone_vector_store()
 
 
 def filter_evidence(
@@ -98,12 +105,14 @@ st.caption("LangChain + Pinecone-ready RAG dashboard for emerging startup discov
 
 with st.sidebar:
     st.header("Data")
-    data_mode = st.radio("Data mode", ["Demo sample", "Live Product Hunt"], index=0)
+    data_mode = st.radio("Data mode", ["Full live RAG", "Demo sample"], index=0)
     product_hunt_count = st.slider("Product Hunt launches", 5, 50, 25, 5)
     posted_after = st.text_input("Posted after date", value="")
 
 data_warning = None
-if data_mode == "Live Product Hunt":
+live_pipeline_ready = False
+vector_store = None
+if data_mode == "Full live RAG":
     try:
         demo_items = load_live_product_hunt_evidence(product_hunt_count, posted_after)
     except Exception as exc:
@@ -128,16 +137,35 @@ with st.sidebar:
         st.session_state.latest_evidence = []
         st.session_state.latest_trace = {}
 
-if data_warning:
-    st.warning(data_warning)
-st.caption(f"Loaded {len(demo_items)} evidence records from {data_mode}.")
-
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "latest_evidence" not in st.session_state:
     st.session_state.latest_evidence = []
 if "latest_trace" not in st.session_state:
     st.session_state.latest_trace = {}
+if "indexed_signature" not in st.session_state:
+    st.session_state.indexed_signature = ""
+
+if data_mode == "Full live RAG" and not data_warning:
+    try:
+        vector_store = load_pinecone_store()
+        index_signature = "|".join(sorted(item.chunk_id for item in demo_items))
+        if st.session_state.indexed_signature != index_signature:
+            with st.spinner("Embedding chunks with Gemini and indexing them in Pinecone..."):
+                indexed_count = index_evidence(vector_store, demo_items)
+            st.session_state.indexed_signature = index_signature
+            st.success(f"Indexed {indexed_count} Product Hunt chunks into Pinecone.")
+        live_pipeline_ready = True
+    except Exception as exc:
+        data_warning = f"Pinecone indexing/search is unavailable: {exc}. Using local reranking fallback."
+        live_pipeline_ready = False
+
+if data_warning:
+    st.warning(data_warning)
+if live_pipeline_ready:
+    st.caption(f"Loaded {len(demo_items)} live Product Hunt records, embedded them with Gemini, and indexed them in Pinecone.")
+else:
+    st.caption(f"Loaded {len(demo_items)} evidence records from {data_mode}.")
 
 default_query = "Which global AI startups are trending and why?"
 
@@ -161,8 +189,22 @@ with left:
 
     prompt = st.chat_input("Ask a follow-up about emerging startups")
     if prompt:
-        turn_candidates = filtered
-        turn_ranked = rerank_evidence(filtered, query=prompt, today="2026-06-10")
+        if live_pipeline_ready and vector_store is not None:
+            metadata_filter = build_pinecone_filter(selected_sources, selected_sectors, selected_regions)
+            try:
+                turn_candidates = search_indexed_evidence(
+                    vector_store,
+                    prompt,
+                    k=min(max(product_hunt_count, 10), 50),
+                    metadata_filter=metadata_filter,
+                )
+            except Exception as exc:
+                st.warning(f"Pinecone retrieval failed, using local fallback: {exc}")
+                turn_candidates = filtered
+        else:
+            turn_candidates = filtered
+
+        turn_ranked = rerank_evidence(turn_candidates, query=prompt, today="2026-06-10")
         turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
         final_prompt = build_answer_prompt(prompt, turn_ranked[:8]) if turn_ranked else ""
         if not turn_ranked:

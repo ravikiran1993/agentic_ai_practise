@@ -1,6 +1,6 @@
 # Global Startup Radar
 
-Global Startup Radar is a Streamlit dashboard and RAG pipeline for discovering emerging startups around the world. It combines startup evidence from Product Hunt, YC-style startup profiles, curated news, and company websites, then uses chunking, embeddings, Pinecone retrieval, reranking, and LLM synthesis to answer startup trend questions with citations.
+Global Startup Radar is a Streamlit dashboard and live RAG pipeline for discovering emerging startups around the world. It combines startup evidence from Product Hunt with chunking, Gemini embeddings, Pinecone retrieval, reranking, and Gemini synthesis to answer startup trend questions with citations.
 
 The project is built for a clear academic/demo submission: it shows every important RAG step instead of hiding the pipeline behind a chatbot.
 
@@ -135,6 +135,8 @@ PINECONE_API_KEY=...
 PINECONE_INDEX_NAME=global-startup-radar
 GOOGLE_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash
+GEMINI_EMBEDDING_MODEL=models/gemini-embedding-001
+GEMINI_EMBEDDING_DIMENSION=1024
 ```
 
 ## Run The Dashboard
@@ -143,11 +145,11 @@ GEMINI_MODEL=gemini-2.5-flash
 streamlit run app.py
 ```
 
-By default, the app runs in demo mode using `data/sample_startups.json`. This means the project can be opened and understood even before API keys are configured. Demo mode contains five sample startups.
+By default, the app runs in **Full live RAG** mode. It fetches Product Hunt launches, embeds the chunks with Gemini, indexes them in Pinecone, retrieves from Pinecone for each question, reranks the retrieved evidence, and sends the final cited prompt to Gemini.
 
-To use live startup data, switch **Data mode** in the sidebar from **Demo sample** to **Live Product Hunt**. The app will use `PRODUCT_HUNT_TOKEN` from `.env`, fetch recent Product Hunt launches, normalize them, chunk them, rerank them, and feed them into the same chat and behind-the-scenes RAG trace.
+If you need an offline fallback, switch **Data mode** in the sidebar to **Demo sample**. Demo mode contains five sample startups and does not require external API calls.
 
-Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. The app keeps the conversation visible, while the right panel updates to show the evidence retrieved for the latest question.
+Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. In full live mode, each question retrieves semantically relevant chunks from Pinecone before reranking and answer generation.
 
 The **Behind the scenes** panel shows how each question moves through the RAG pipeline: incoming chunks, embedding representation notes, reranked evidence order, scores, and the exact prompt sent to the LLM.
 
@@ -181,9 +183,9 @@ The live integration path is:
 1. Use `startup_radar.ingestion.product_hunt.fetch_recent_product_hunt_posts()` to fetch recent launches.
 2. Normalize posts with `product_hunt_post_to_evidence()`.
 3. Chunk records with `chunk_evidence_record()`.
-4. Create a Pinecone vector store with `create_pinecone_vector_store()`.
-5. Upsert chunks with `upsert_chunks()`.
-6. Retrieve evidence with `search_vector_store()`.
+4. Embed chunks with Gemini embeddings.
+5. Upsert vectors into Pinecone with `index_evidence()`.
+6. Retrieve relevant evidence from Pinecone with `search_indexed_evidence()`.
 7. Rerank with `rerank_evidence()`.
 8. Generate an answer with `generate_answer()`.
 
