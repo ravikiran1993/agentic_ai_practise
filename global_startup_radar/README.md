@@ -15,6 +15,7 @@ Users can ask questions such as:
 
 The dashboard returns:
 
+- a chat-style question and answer history
 - a ranked startup table
 - trend scores
 - evidence snippets
@@ -142,6 +143,8 @@ streamlit run app.py
 ```
 
 By default, the app runs in demo mode using `data/sample_startups.json`. This means the project can be opened and understood even before API keys are configured.
+
+Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. The app keeps the conversation visible, while the right panel updates to show the evidence retrieved for the latest question.
 
 ## Running Tests
 

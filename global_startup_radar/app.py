@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from startup_radar.chat import append_chat_turn, create_chat_turn
 from startup_radar.chunking import chunk_evidence_record
 from startup_radar.environment import load_environment
 from startup_radar.ingestion.sample_data import load_sample_records
@@ -100,20 +101,56 @@ with st.sidebar:
     selected_regions = st.multiselect("Regions", all_regions)
     min_trend_score = st.slider("Minimum trend score", 0, 100, 0)
     answer_mode = st.radio("Answer mode", ["Prompt preview", "Live Gemini call"], index=0)
+    if st.button("Clear chat", use_container_width=True):
+        st.session_state.chat_history = []
+        st.session_state.latest_evidence = []
 
-query = st.text_input(
-    "Ask a startup trend question",
-    value="Which global AI startups are trending and why?",
-)
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "latest_evidence" not in st.session_state:
+    st.session_state.latest_evidence = []
+
+default_query = "Which global AI startups are trending and why?"
 
 filtered = filter_evidence(demo_items, selected_sources, selected_sectors, selected_regions)
-ranked = rerank_evidence(filtered, query=query, today="2026-06-10")
-ranked = [item for item in ranked if item.trend_score >= min_trend_score]
-df = to_dataframe(ranked)
+dashboard_ranked = rerank_evidence(filtered, query=default_query, today="2026-06-10")
+dashboard_ranked = [item for item in dashboard_ranked if item.trend_score >= min_trend_score]
+df = to_dataframe(dashboard_ranked)
 
 left, right = st.columns([1.3, 1])
 
 with left:
+    st.subheader("Startup trend chat")
+    if not st.session_state.chat_history:
+        st.info("Ask a question about startup sectors, regions, or traction signals to begin.")
+
+    for turn in st.session_state.chat_history:
+        with st.chat_message("user"):
+            st.write(turn["question"])
+        with st.chat_message("assistant"):
+            st.write(turn["answer"])
+
+    prompt = st.chat_input("Ask a follow-up about emerging startups")
+    if prompt:
+        turn_ranked = rerank_evidence(filtered, query=prompt, today="2026-06-10")
+        turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
+        if not turn_ranked:
+            answer = "No matching evidence was found for this question and filter set."
+        elif answer_mode == "Live Gemini call":
+            try:
+                answer = generate_answer(prompt, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
+            except Exception as exc:
+                answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{build_answer_prompt(prompt, turn_ranked[:8])}"
+        else:
+            answer = build_answer_prompt(prompt, turn_ranked[:8])
+
+        st.session_state.latest_evidence = turn_ranked[:8]
+        st.session_state.chat_history = append_chat_turn(
+            st.session_state.chat_history,
+            create_chat_turn(prompt, answer, turn_ranked[:8], answer_mode),
+        )
+        st.rerun()
+
     st.subheader("Ranked startups")
     if df.empty:
         st.info("No evidence matches the selected filters.")
@@ -124,26 +161,15 @@ with left:
             hide_index=True,
         )
 
-    st.subheader("RAG answer")
-    if not ranked:
-        st.write("No matching evidence was found for this query and filter set.")
-    elif answer_mode == "Live Gemini call":
-        try:
-            st.write(generate_answer(query, ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL")))
-        except Exception as exc:
-            st.warning(f"Live Gemini answer generation is unavailable: {exc}")
-            st.code(build_answer_prompt(query, ranked[:8]), language="markdown")
-    else:
-        st.code(build_answer_prompt(query, ranked[:8]), language="markdown")
-
 with right:
     st.subheader("Trend charts")
     if not df.empty:
         st.plotly_chart(px.bar(df, x="Startup", y="Trend Score", color="Sector"), use_container_width=True)
         st.plotly_chart(px.histogram(df, x="Source", color="Region"), use_container_width=True)
 
-    st.subheader("Evidence snippets")
-    for index, item in enumerate(ranked[:8], start=1):
+    st.subheader("Latest evidence")
+    latest_evidence = st.session_state.latest_evidence or dashboard_ranked[:8]
+    for index, item in enumerate(latest_evidence, start=1):
         with st.expander(f"[{index}] {item.startup_name} - score {item.trend_score}"):
             st.write(item.text)
             st.write(f"Source: {item.source_url}")
