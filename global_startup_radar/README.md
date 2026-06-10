@@ -132,6 +132,7 @@ PRODUCT_HUNT_TOKEN=...
 PINECONE_API_KEY=...
 PINECONE_INDEX_NAME=global-startup-radar
 GOOGLE_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## Run The Dashboard
@@ -161,7 +162,7 @@ The tests intentionally focus on pure logic that does not require paid services:
 
 ## LLM Providers
 
-The dashboard uses Gemini for live answer generation through `GOOGLE_API_KEY`, using `gemini-1.5-flash` by default.
+The dashboard uses Gemini for live answer generation through `GOOGLE_API_KEY`, using `gemini-2.5-flash` by default. You can override the model with `GEMINI_MODEL` in `.env`.
 
 Use **Prompt preview** mode when you want to inspect the retrieved context without making any LLM API calls. Use **Live Gemini call** when you want the dashboard to generate a cited answer.
 

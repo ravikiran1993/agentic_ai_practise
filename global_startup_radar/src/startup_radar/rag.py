@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from startup_radar.environment import load_environment
 from startup_radar.models import RetrievedEvidence
 
@@ -53,7 +55,7 @@ def create_chat_model(provider: str = "gemini", model: str | None = None, temper
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError as exc:
             raise RuntimeError("Install langchain-google-genai to generate Gemini answers.")
-        return ChatGoogleGenerativeAI(model=model or "gemini-1.5-flash", temperature=temperature)
+        return ChatGoogleGenerativeAI(model=model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), temperature=temperature)
     raise ValueError(f"Unsupported LLM provider: {provider}")
 
 

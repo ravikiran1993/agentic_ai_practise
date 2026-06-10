@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
@@ -128,7 +129,7 @@ with left:
         st.write("No matching evidence was found for this query and filter set.")
     elif answer_mode == "Live Gemini call":
         try:
-            st.write(generate_answer(query, ranked[:8], provider="gemini", model="gemini-1.5-flash"))
+            st.write(generate_answer(query, ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL")))
         except Exception as exc:
             st.warning(f"Live Gemini answer generation is unavailable: {exc}")
             st.code(build_answer_prompt(query, ranked[:8]), language="markdown")

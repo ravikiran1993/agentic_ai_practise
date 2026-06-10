@@ -17,9 +17,9 @@ class LlmProviderTests(unittest.TestCase):
         chat_google = MagicMock()
         fake_module = types.SimpleNamespace(ChatGoogleGenerativeAI=chat_google)
         with patch.dict(sys.modules, {"langchain_google_genai": fake_module}):
-            create_chat_model(provider="gemini", model="gemini-1.5-flash")
+            create_chat_model(provider="gemini", model="gemini-2.5-flash")
 
-        chat_google.assert_called_once_with(model="gemini-1.5-flash", temperature=0.2)
+        chat_google.assert_called_once_with(model="gemini-2.5-flash", temperature=0.2)
 
     def test_generate_answer_invokes_selected_provider(self):
         from startup_radar.models import RetrievedEvidence
