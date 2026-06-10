@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from startup_radar.environment import load_environment
 from startup_radar.models import RetrievedEvidence
 
 
@@ -46,6 +47,7 @@ Answer with:
 
 def generate_answer(query: str, evidence_items: list[RetrievedEvidence], model: str = "gpt-4.1-mini") -> str:
     """Generate an answer using LangChain/OpenAI when dependencies and keys are available."""
+    load_environment()
     try:
         from langchain_openai import ChatOpenAI
     except ImportError as exc:

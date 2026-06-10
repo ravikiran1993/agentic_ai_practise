@@ -10,6 +10,7 @@ import plotly.express as px
 import streamlit as st
 
 from startup_radar.chunking import chunk_evidence_record
+from startup_radar.environment import load_environment
 from startup_radar.ingestion.sample_data import load_sample_records
 from startup_radar.models import RetrievedEvidence
 from startup_radar.rag import build_answer_prompt, generate_answer
@@ -18,6 +19,8 @@ from startup_radar.reranking import rerank_evidence
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SAMPLE_DATA = PROJECT_ROOT / "data" / "sample_startups.json"
+
+load_environment(PROJECT_ROOT / ".env")
 
 
 st.set_page_config(page_title="Global Startup Radar", layout="wide")
