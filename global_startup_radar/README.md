@@ -151,7 +151,7 @@ If you need an offline fallback, switch **Data mode** in the sidebar to **Demo s
 
 Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. In full live mode, each question retrieves semantically relevant chunks from Pinecone before reranking and answer generation.
 
-The **Behind the scenes** panel shows how each question moves through the RAG pipeline: incoming chunks, embedding representation notes, reranked evidence order, scores, and the exact prompt sent to the LLM.
+The **Behind the scenes** panel shows how each question moves through the RAG pipeline: source chunks prepared for indexing, Gemini embedding/Pinecone query details, Pinecone retrieval output before reranking, final order after reranking, scores, and the exact prompt sent to the LLM.
 
 ## Running Tests
 

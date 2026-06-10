@@ -49,13 +49,19 @@ class TraceTests(unittest.TestCase):
 
         trace = build_rag_trace(
             query="Which AI healthcare startups are trending?",
-            candidates=candidates,
+            source_chunks=candidates,
+            pinecone_results=candidates,
             reranked=reranked,
             final_prompt="Question: Which AI healthcare startups are trending?",
+            pinecone_filter={"source_type": {"$in": ["product_hunt"]}},
+            pinecone_top_k=20,
         )
 
         self.assertEqual(trace["query"], "Which AI healthcare startups are trending?")
-        self.assertEqual(trace["retrieved_chunks"][0]["chunk_id"], "older")
+        self.assertEqual(trace["source_chunks"][0]["chunk_id"], "older")
+        self.assertEqual(trace["pinecone_query"]["top_k"], 20)
+        self.assertEqual(trace["pinecone_query"]["filter"], {"source_type": {"$in": ["product_hunt"]}})
+        self.assertEqual(trace["pinecone_results_before_rerank"][0]["chunk_id"], "older")
         self.assertEqual(trace["reranked_chunks"][0]["startup_name"], "FreshAI")
         self.assertEqual(trace["llm_prompt"], "Question: Which AI healthcare startups are trending?")
 

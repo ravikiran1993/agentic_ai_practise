@@ -189,22 +189,26 @@ with left:
 
     prompt = st.chat_input("Ask a follow-up about emerging startups")
     if prompt:
+        source_chunks = filtered
+        pinecone_filter = None
+        pinecone_top_k = None
         if live_pipeline_ready and vector_store is not None:
-            metadata_filter = build_pinecone_filter(selected_sources, selected_sectors, selected_regions)
+            pinecone_filter = build_pinecone_filter(selected_sources, selected_sectors, selected_regions)
+            pinecone_top_k = min(max(product_hunt_count, 10), 50)
             try:
-                turn_candidates = search_indexed_evidence(
+                pinecone_results = search_indexed_evidence(
                     vector_store,
                     prompt,
-                    k=min(max(product_hunt_count, 10), 50),
-                    metadata_filter=metadata_filter,
+                    k=pinecone_top_k,
+                    metadata_filter=pinecone_filter,
                 )
             except Exception as exc:
                 st.warning(f"Pinecone retrieval failed, using local fallback: {exc}")
-                turn_candidates = filtered
+                pinecone_results = filtered
         else:
-            turn_candidates = filtered
+            pinecone_results = filtered
 
-        turn_ranked = rerank_evidence(turn_candidates, query=prompt, today="2026-06-10")
+        turn_ranked = rerank_evidence(pinecone_results, query=prompt, today="2026-06-10")
         turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
         final_prompt = build_answer_prompt(prompt, turn_ranked[:8]) if turn_ranked else ""
         if not turn_ranked:
@@ -217,7 +221,15 @@ with left:
         else:
             answer = final_prompt
 
-        trace = build_rag_trace(prompt, turn_candidates, turn_ranked[:8], final_prompt)
+        trace = build_rag_trace(
+            query=prompt,
+            source_chunks=source_chunks,
+            pinecone_results=pinecone_results,
+            reranked=turn_ranked[:8],
+            final_prompt=final_prompt,
+            pinecone_filter=pinecone_filter,
+            pinecone_top_k=pinecone_top_k,
+        )
         st.session_state.latest_evidence = turn_ranked[:8]
         st.session_state.latest_trace = trace
         st.session_state.chat_history = append_chat_turn(
@@ -264,30 +276,38 @@ with right:
         st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
     else:
         st.caption(f"Trace for: {latest_trace['query']}")
-        with st.expander("1. Incoming chunks before reranking", expanded=False):
+        with st.expander("1. Source chunks prepared for indexing", expanded=False):
             st.dataframe(
-                pd.DataFrame(latest_trace["retrieved_chunks"])[
+                pd.DataFrame(latest_trace["source_chunks"])[
                     ["position", "startup_name", "source_type", "similarity_score", "text"]
                 ],
                 use_container_width=True,
                 hide_index=True,
             )
-        with st.expander("2. Embedding representation", expanded=False):
-            st.write(
-                "In live indexing, each chunk is converted into a Gemini embedding vector and stored in Pinecone. "
-                "The demo dataset uses the same evidence objects without calling Pinecone on every page refresh."
-            )
+        with st.expander("2. Gemini embedding and Pinecone query", expanded=False):
+            st.write("Each source chunk is embedded with Gemini and stored as a vector in Pinecone.")
+            st.json(latest_trace["pinecone_query"])
+            st.write("Pinecone upsert input summary:")
             st.json(
                 [
                     {
                         "chunk_id": item["chunk_id"],
                         "startup_name": item["startup_name"],
+                        "source_type": item["source_type"],
                         "embedding_note": item["embedding_note"],
                     }
-                    for item in latest_trace["retrieved_chunks"]
+                    for item in latest_trace["source_chunks"]
                 ]
             )
-        with st.expander("3. Ranking after reranking", expanded=True):
+        with st.expander("3. Pinecone retrieval output before reranking", expanded=True):
+            st.dataframe(
+                pd.DataFrame(latest_trace["pinecone_results_before_rerank"])[
+                    ["position", "startup_name", "source_type", "similarity_score", "text"]
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        with st.expander("4. Final order after reranking", expanded=True):
             st.dataframe(
                 pd.DataFrame(latest_trace["reranked_chunks"])[
                     ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
@@ -295,5 +315,5 @@ with right:
                 use_container_width=True,
                 hide_index=True,
             )
-        with st.expander("4. Exact LLM input", expanded=False):
+        with st.expander("5. Exact LLM input", expanded=False):
             st.code(latest_trace["llm_prompt"], language="markdown")
