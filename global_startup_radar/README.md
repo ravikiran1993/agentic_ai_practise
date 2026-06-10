@@ -132,6 +132,7 @@ PRODUCT_HUNT_TOKEN=...
 PINECONE_API_KEY=...
 PINECONE_INDEX_NAME=global-startup-radar
 OPENAI_API_KEY=...
+GOOGLE_API_KEY=...
 ```
 
 ## Run The Dashboard
@@ -158,6 +159,15 @@ The tests intentionally focus on pure logic that does not require paid services:
 - trend score calculation
 - evidence reranking
 - cited prompt context generation
+
+## LLM Providers
+
+The dashboard supports two live answer providers:
+
+- **Gemini** through `GOOGLE_API_KEY`, using `gemini-1.5-flash` by default.
+- **OpenAI** through `OPENAI_API_KEY`, using `gpt-4.1-mini` by default.
+
+Use **Prompt preview** mode when you want to inspect the retrieved context without spending API credits. Use **Live Gemini call** when OpenAI quota is unavailable.
 
 ## Live Integration Path
 
