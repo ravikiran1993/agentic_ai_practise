@@ -153,6 +153,30 @@ Use the chat input at the bottom of the main panel to ask multiple startup-trend
 
 The **Behind the scenes** panel shows how each question moves through the RAG pipeline: source chunks prepared for indexing, Gemini embedding/Pinecone query details, Pinecone retrieval output before reranking, final order after reranking, scores, and the exact prompt sent to the LLM.
 
+## Deploy To Streamlit Community Cloud
+
+Use these settings when creating the app:
+
+```text
+Repository: ravikiran-uppalapati/agentic_ai_practise
+Branch: main
+Main file path: global_startup_radar/app.py
+```
+
+In **Advanced settings**, paste secrets in TOML format:
+
+```toml
+PRODUCT_HUNT_TOKEN = "your-product-hunt-token"
+PINECONE_API_KEY = "your-pinecone-api-key"
+PINECONE_INDEX_NAME = "global-startup-radar"
+GOOGLE_API_KEY = "your-gemini-api-key"
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_EMBEDDING_MODEL = "models/gemini-embedding-001"
+GEMINI_EMBEDDING_DIMENSION = "1024"
+```
+
+Do not commit `.env` or `.streamlit/secrets.toml`. The app reads local `.env` during development and Streamlit Cloud secrets during deployment.
+
 ## Running Tests
 
 From the repository root:

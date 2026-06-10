@@ -12,7 +12,7 @@ import streamlit as st
 
 from startup_radar.chat import append_chat_turn, create_chat_turn
 from startup_radar.chunking import chunk_evidence_record
-from startup_radar.environment import load_environment
+from startup_radar.environment import apply_runtime_secrets, load_environment
 from startup_radar.ingestion.sample_data import load_sample_records
 from startup_radar.live_data import load_product_hunt_evidence
 from startup_radar.live_pipeline import build_pinecone_filter, index_evidence, search_indexed_evidence
@@ -30,6 +30,10 @@ load_environment(PROJECT_ROOT / ".env")
 
 
 st.set_page_config(page_title="Global Startup Radar", layout="wide")
+try:
+    apply_runtime_secrets(st.secrets)
+except FileNotFoundError:
+    pass
 
 
 @st.cache_data

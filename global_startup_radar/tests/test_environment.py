@@ -24,6 +24,20 @@ class EnvironmentTests(unittest.TestCase):
 
                 self.assertEqual(os.environ["GOOGLE_API_KEY"], "test-key")
 
+    def test_apply_runtime_secrets_sets_missing_environment_values(self):
+        from startup_radar.environment import apply_runtime_secrets
+
+        with patch.dict(os.environ, {"GOOGLE_API_KEY": "existing"}, clear=True):
+            apply_runtime_secrets(
+                {
+                    "GOOGLE_API_KEY": "from-secrets",
+                    "PINECONE_API_KEY": "pinecone-key",
+                }
+            )
+
+            self.assertEqual(os.environ["GOOGLE_API_KEY"], "existing")
+            self.assertEqual(os.environ["PINECONE_API_KEY"], "pinecone-key")
+
 
 if __name__ == "__main__":
     unittest.main()
