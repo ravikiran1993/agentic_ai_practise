@@ -397,13 +397,16 @@ def run_chat_turn(question: str) -> None:
     turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
     final_prompt = build_answer_prompt(question, turn_ranked[:8]) if turn_ranked else ""
     answer_mode = "Live Gemini call"
+    answer_status = "Attempted live Gemini generation"
     if not turn_ranked:
         answer = "No matching evidence was found for this question and filter set."
+        answer_status = "Skipped because no evidence matched the filters"
     else:
         try:
             answer = generate_answer(question, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
         except Exception as exc:
             answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{final_prompt}"
+            answer_status = f"Failed: {exc}"
 
     trace = build_rag_trace(
         query=question,
@@ -414,6 +417,13 @@ def run_chat_turn(question: str) -> None:
         pinecone_filter=pinecone_filter,
         pinecone_top_k=pinecone_top_k,
     )
+    trace["llm_call"] = {
+        "provider": "Gemini via LangChain",
+        "model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "mode": answer_mode,
+        "status": answer_status,
+        "evidence_chunks_sent": len(turn_ranked[:8]),
+    }
     st.session_state.latest_evidence = turn_ranked[:8]
     st.session_state.latest_trace = trace
     st.session_state.chat_history = append_chat_turn(
@@ -434,6 +444,7 @@ with left:
         with st.chat_message("user"):
             st.write(turn["question"])
         with st.chat_message("assistant"):
+            st.caption(f"Answer engine: {turn['mode']}")
             st.write(turn["answer"])
 
     st.subheader("Suggested questions")
@@ -464,7 +475,58 @@ with left:
         )
 
 with right:
-    evidence_tab, charts_tab, trace_tab = st.tabs(["Evidence", "Charts", "RAG trace"])
+    trace_tab, evidence_tab, charts_tab = st.tabs(["RAG trace", "Evidence", "Charts"])
+
+    with trace_tab:
+        st.subheader("Behind the scenes")
+        latest_trace = st.session_state.latest_trace
+        if not latest_trace:
+            st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
+        else:
+            st.caption(f"Trace for: {latest_trace['query']}")
+            with st.expander("0. Live Gemini call", expanded=True):
+                st.json(latest_trace["llm_call"])
+            with st.expander("1. Source chunks prepared for indexing", expanded=False):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["source_chunks"])[
+                        ["position", "startup_name", "source_type", "similarity_score", "text"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("2. Gemini embedding and Pinecone query", expanded=False):
+                st.write("Each source chunk is embedded with Gemini and stored as a vector in Pinecone.")
+                st.json(latest_trace["pinecone_query"])
+                st.write("Pinecone upsert input summary:")
+                st.json(
+                    [
+                        {
+                            "chunk_id": item["chunk_id"],
+                            "startup_name": item["startup_name"],
+                            "source_type": item["source_type"],
+                            "embedding_note": item["embedding_note"],
+                        }
+                        for item in latest_trace["source_chunks"]
+                    ]
+                )
+            with st.expander("3. Pinecone retrieval output before reranking", expanded=True):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["pinecone_results_before_rerank"])[
+                        ["position", "startup_name", "source_type", "similarity_score", "text"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("4. Final order after reranking", expanded=True):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["reranked_chunks"])[
+                        ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("5. Exact LLM input", expanded=False):
+                st.code(latest_trace["llm_prompt"], language="markdown")
 
     with evidence_tab:
         st.subheader("Latest evidence")
@@ -518,52 +580,3 @@ with right:
                 font=dict(color="#17202a"),
             )
             st.plotly_chart(source_chart, use_container_width=True)
-
-    with trace_tab:
-        st.subheader("Behind the scenes")
-        latest_trace = st.session_state.latest_trace
-        if not latest_trace:
-            st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
-        else:
-            st.caption(f"Trace for: {latest_trace['query']}")
-            with st.expander("1. Source chunks prepared for indexing", expanded=False):
-                st.dataframe(
-                    pd.DataFrame(latest_trace["source_chunks"])[
-                        ["position", "startup_name", "source_type", "similarity_score", "text"]
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            with st.expander("2. Gemini embedding and Pinecone query", expanded=False):
-                st.write("Each source chunk is embedded with Gemini and stored as a vector in Pinecone.")
-                st.json(latest_trace["pinecone_query"])
-                st.write("Pinecone upsert input summary:")
-                st.json(
-                    [
-                        {
-                            "chunk_id": item["chunk_id"],
-                            "startup_name": item["startup_name"],
-                            "source_type": item["source_type"],
-                            "embedding_note": item["embedding_note"],
-                        }
-                        for item in latest_trace["source_chunks"]
-                    ]
-                )
-            with st.expander("3. Pinecone retrieval output before reranking", expanded=True):
-                st.dataframe(
-                    pd.DataFrame(latest_trace["pinecone_results_before_rerank"])[
-                        ["position", "startup_name", "source_type", "similarity_score", "text"]
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            with st.expander("4. Final order after reranking", expanded=True):
-                st.dataframe(
-                    pd.DataFrame(latest_trace["reranked_chunks"])[
-                        ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            with st.expander("5. Exact LLM input", expanded=False):
-                st.code(latest_trace["llm_prompt"], language="markdown")
