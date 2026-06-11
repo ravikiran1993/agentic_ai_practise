@@ -4,7 +4,7 @@ Global Startup Radar is a Streamlit dashboard and live RAG pipeline for discover
 
 The project is built for a clear academic/demo submission: it shows every important RAG step instead of hiding the pipeline behind a chatbot.
 
-For a detailed visual architecture diagram, see [docs/architecture.md](docs/architecture.md).
+For a detailed visual architecture diagram, see [docs/architecture.md](docs/architecture.md). For the scoring and reranking explanation, see [docs/scoring.md](docs/scoring.md).
 
 ## What The Project Does
 
@@ -97,6 +97,8 @@ Raw source data
 ## Trend Score
 
 The trend score is an explainable heuristic from 0 to 100. It is not investment advice and should not be treated as a revenue, valuation, or funding predictor.
+
+Detailed scoring documentation is available in [docs/scoring.md](docs/scoring.md).
 
 The MVP combines:
 

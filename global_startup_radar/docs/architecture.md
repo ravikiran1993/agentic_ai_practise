@@ -78,6 +78,8 @@ flowchart TD
 
 ## Runtime Flow
 
+For a deeper explanation of the score formula, component weights, reranking score, examples, and limitations, see [scoring.md](scoring.md).
+
 ### 1. Live Data Fetch
 
 The app starts in **Full live RAG** mode. It calls Product Hunt through `fetch_recent_product_hunt_posts()` using the configured `PRODUCT_HUNT_TOKEN`.
