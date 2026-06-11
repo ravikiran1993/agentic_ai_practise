@@ -37,6 +37,162 @@ except FileNotFoundError:
     pass
 
 
+APP_CSS = """
+<style>
+    :root {
+        --gsr-ink: #17202a;
+        --gsr-muted: #5e6874;
+        --gsr-line: #d8dee8;
+        --gsr-panel: #ffffff;
+        --gsr-panel-soft: #f7f9fc;
+        --gsr-teal: #087f8c;
+        --gsr-indigo: #3546a6;
+        --gsr-coral: #c65a3a;
+        --gsr-gold: #a97400;
+    }
+
+    .stApp {
+        background:
+            linear-gradient(180deg, #f8fafc 0%, #eef4f6 38%, #f7f4ef 100%);
+        color: var(--gsr-ink);
+    }
+
+    #MainMenu, footer, header {
+        visibility: hidden;
+    }
+
+    .block-container {
+        padding-top: 1.2rem;
+        padding-bottom: 2rem;
+        max-width: 1500px;
+    }
+
+    [data-testid="stSidebar"] {
+        background: #ffffff;
+        border-right: 1px solid var(--gsr-line);
+    }
+
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: var(--gsr-ink);
+    }
+
+    .gsr-hero {
+        background: linear-gradient(135deg, #ffffff 0%, #f3f8f8 48%, #fff8f3 100%);
+        border: 1px solid var(--gsr-line);
+        border-radius: 8px;
+        padding: 1.2rem 1.35rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 12px 32px rgba(23, 32, 42, 0.07);
+    }
+
+    .gsr-kicker {
+        color: var(--gsr-teal);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+    }
+
+    .gsr-title {
+        color: var(--gsr-ink);
+        font-size: 2rem;
+        line-height: 1.15;
+        font-weight: 760;
+        margin: 0;
+    }
+
+    .gsr-subtitle {
+        color: var(--gsr-muted);
+        font-size: 0.98rem;
+        line-height: 1.55;
+        margin: 0.45rem 0 0;
+        max-width: 880px;
+    }
+
+    .gsr-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid #b9d9dd;
+        background: #effafa;
+        color: #075d66;
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.82rem;
+        font-weight: 650;
+        margin-top: 0.85rem;
+    }
+
+    [data-testid="stMetric"] {
+        background: var(--gsr-panel);
+        border: 1px solid var(--gsr-line);
+        border-radius: 8px;
+        padding: 0.85rem 0.95rem;
+        box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: var(--gsr-muted);
+    }
+
+    [data-testid="stMetricValue"] {
+        color: var(--gsr-ink);
+    }
+
+    div[data-testid="stButton"] > button {
+        border-radius: 8px;
+        border: 1px solid var(--gsr-line);
+        background: #ffffff;
+        color: var(--gsr-ink);
+        min-height: 3.1rem;
+        text-align: left;
+        white-space: normal;
+        line-height: 1.25;
+        box-shadow: 0 4px 14px rgba(23, 32, 42, 0.04);
+    }
+
+    div[data-testid="stButton"] > button:hover {
+        border-color: var(--gsr-teal);
+        color: #075d66;
+        background: #f1fbfb;
+    }
+
+    div[data-testid="stChatMessage"] {
+        border: 1px solid var(--gsr-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.76);
+        box-shadow: 0 6px 18px rgba(23, 32, 42, 0.04);
+    }
+
+    div[data-testid="stExpander"] {
+        border: 1px solid var(--gsr-line);
+        border-radius: 8px;
+        background: var(--gsr-panel);
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.35rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid var(--gsr-line);
+        padding: 0.45rem 0.75rem;
+    }
+
+    .stDataFrame {
+        border: 1px solid var(--gsr-line);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+</style>
+"""
+
+st.markdown(APP_CSS, unsafe_allow_html=True)
+
+
 @st.cache_data
 def load_demo_evidence() -> list[RetrievedEvidence]:
     records = load_sample_records(SAMPLE_DATA)
@@ -113,8 +269,21 @@ def to_dataframe(evidence: list[RetrievedEvidence]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-st.title("Global Startup Radar")
-st.caption("LangChain + Pinecone-ready RAG dashboard for emerging startup discovery.")
+st.markdown(
+    """
+    <section class="gsr-hero">
+        <div class="gsr-kicker">Live startup intelligence RAG</div>
+        <h1 class="gsr-title">Global Startup Radar</h1>
+        <p class="gsr-subtitle">
+            Discover emerging startups from live Product Hunt launches and selected company websites.
+            The app embeds evidence with Gemini, stores vectors in Pinecone, reranks retrieved chunks,
+            and generates cited answers with a transparent trace.
+        </p>
+        <div class="gsr-status">Product Hunt -> Gemini embeddings -> Pinecone -> reranking -> Gemini answer</div>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.sidebar:
     st.header("Data")
@@ -193,6 +362,16 @@ dashboard_ranked = rerank_evidence(filtered, query=default_query, today="2026-06
 dashboard_ranked = [item for item in dashboard_ranked if item.trend_score >= min_trend_score]
 df = to_dataframe(dashboard_ranked)
 
+unique_startups = len({item.startup_name for item in filtered})
+source_count = len({item.source_type for item in filtered})
+top_score = max([item.trend_score for item in dashboard_ranked], default=0)
+
+metric_a, metric_b, metric_c, metric_d = st.columns(4)
+metric_a.metric("Evidence records", len(filtered))
+metric_b.metric("Unique startups", unique_startups)
+metric_c.metric("Source types", source_count)
+metric_d.metric("Top trend score", f"{top_score:.1f}")
+
 
 def run_chat_turn(question: str) -> None:
     source_chunks = filtered
@@ -249,7 +428,7 @@ left, right = st.columns([1.3, 1])
 with left:
     st.subheader("Startup trend chat")
     if not st.session_state.chat_history:
-        st.info("Ask a question about startup sectors, regions, or traction signals to begin.")
+        st.info("Choose a suggested question or ask your own startup-trend question.")
 
     for turn in st.session_state.chat_history:
         with st.chat_message("user"):
@@ -258,6 +437,7 @@ with left:
             st.write(turn["answer"])
 
     st.subheader("Suggested questions")
+    st.caption("Use these to demo retrieval, scoring, comparison, and evidence quality.")
     suggested_questions = get_suggested_questions()
     for row_start in range(0, len(suggested_questions), 2):
         columns = st.columns(2)
@@ -284,71 +464,106 @@ with left:
         )
 
 with right:
-    st.subheader("Trend charts")
-    if not df.empty:
-        st.plotly_chart(px.bar(df, x="Startup", y="Trend Score", color="Sector"), use_container_width=True)
-        st.plotly_chart(px.histogram(df, x="Source", color="Region"), use_container_width=True)
+    evidence_tab, charts_tab, trace_tab = st.tabs(["Evidence", "Charts", "RAG trace"])
 
-    st.subheader("Latest evidence")
-    latest_evidence = st.session_state.latest_evidence or dashboard_ranked[:8]
-    for index, item in enumerate(latest_evidence, start=1):
-        with st.expander(f"[{index}] {item.startup_name} - score {item.trend_score}"):
-            st.write(item.text)
-            st.write(f"Source: {item.source_url}")
-            st.json(
-                {
-                    "source_type": item.source_type,
-                    "similarity_score": item.similarity_score,
-                    "rerank_score": item.rerank_score,
-                    "trend_score": item.trend_score,
-                    "topics": item.metadata.get("topics"),
-                }
-            )
-
-    st.subheader("Behind the scenes")
-    latest_trace = st.session_state.latest_trace
-    if not latest_trace:
-        st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
-    else:
-        st.caption(f"Trace for: {latest_trace['query']}")
-        with st.expander("1. Source chunks prepared for indexing", expanded=False):
-            st.dataframe(
-                pd.DataFrame(latest_trace["source_chunks"])[
-                    ["position", "startup_name", "source_type", "similarity_score", "text"]
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
-        with st.expander("2. Gemini embedding and Pinecone query", expanded=False):
-            st.write("Each source chunk is embedded with Gemini and stored as a vector in Pinecone.")
-            st.json(latest_trace["pinecone_query"])
-            st.write("Pinecone upsert input summary:")
-            st.json(
-                [
+    with evidence_tab:
+        st.subheader("Latest evidence")
+        latest_evidence = st.session_state.latest_evidence or dashboard_ranked[:8]
+        for index, item in enumerate(latest_evidence, start=1):
+            with st.expander(f"[{index}] {item.startup_name} - score {item.trend_score}"):
+                st.write(item.text)
+                st.write(f"Source: {item.source_url}")
+                st.json(
                     {
-                        "chunk_id": item["chunk_id"],
-                        "startup_name": item["startup_name"],
-                        "source_type": item["source_type"],
-                        "embedding_note": item["embedding_note"],
+                        "source_type": item.source_type,
+                        "similarity_score": item.similarity_score,
+                        "rerank_score": item.rerank_score,
+                        "trend_score": item.trend_score,
+                        "topics": item.metadata.get("topics"),
                     }
-                    for item in latest_trace["source_chunks"]
-                ]
+                )
+
+    with charts_tab:
+        st.subheader("Trend charts")
+        if df.empty:
+            st.info("No chartable evidence for the selected filters.")
+        else:
+            score_chart = px.bar(
+                df.sort_values("Trend Score", ascending=False).head(12),
+                x="Startup",
+                y="Trend Score",
+                color="Source",
+                color_discrete_sequence=["#087f8c", "#3546a6", "#c65a3a", "#a97400"],
             )
-        with st.expander("3. Pinecone retrieval output before reranking", expanded=True):
-            st.dataframe(
-                pd.DataFrame(latest_trace["pinecone_results_before_rerank"])[
-                    ["position", "startup_name", "source_type", "similarity_score", "text"]
-                ],
-                use_container_width=True,
-                hide_index=True,
+            score_chart.update_layout(
+                height=360,
+                margin=dict(l=10, r=10, t=20, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#17202a"),
             )
-        with st.expander("4. Final order after reranking", expanded=True):
-            st.dataframe(
-                pd.DataFrame(latest_trace["reranked_chunks"])[
-                    ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
-                ],
-                use_container_width=True,
-                hide_index=True,
+            st.plotly_chart(score_chart, use_container_width=True)
+
+            source_chart = px.histogram(
+                df,
+                x="Source",
+                color="Region",
+                color_discrete_sequence=["#087f8c", "#3546a6", "#c65a3a", "#a97400", "#5e6874"],
             )
-        with st.expander("5. Exact LLM input", expanded=False):
-            st.code(latest_trace["llm_prompt"], language="markdown")
+            source_chart.update_layout(
+                height=310,
+                margin=dict(l=10, r=10, t=20, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#17202a"),
+            )
+            st.plotly_chart(source_chart, use_container_width=True)
+
+    with trace_tab:
+        st.subheader("Behind the scenes")
+        latest_trace = st.session_state.latest_trace
+        if not latest_trace:
+            st.info("Ask a question to see chunks, embeddings, ranking, reranking, and the final LLM input.")
+        else:
+            st.caption(f"Trace for: {latest_trace['query']}")
+            with st.expander("1. Source chunks prepared for indexing", expanded=False):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["source_chunks"])[
+                        ["position", "startup_name", "source_type", "similarity_score", "text"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("2. Gemini embedding and Pinecone query", expanded=False):
+                st.write("Each source chunk is embedded with Gemini and stored as a vector in Pinecone.")
+                st.json(latest_trace["pinecone_query"])
+                st.write("Pinecone upsert input summary:")
+                st.json(
+                    [
+                        {
+                            "chunk_id": item["chunk_id"],
+                            "startup_name": item["startup_name"],
+                            "source_type": item["source_type"],
+                            "embedding_note": item["embedding_note"],
+                        }
+                        for item in latest_trace["source_chunks"]
+                    ]
+                )
+            with st.expander("3. Pinecone retrieval output before reranking", expanded=True):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["pinecone_results_before_rerank"])[
+                        ["position", "startup_name", "source_type", "similarity_score", "text"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("4. Final order after reranking", expanded=True):
+                st.dataframe(
+                    pd.DataFrame(latest_trace["reranked_chunks"])[
+                        ["position", "startup_name", "similarity_score", "trend_score", "rerank_score", "source_type"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            with st.expander("5. Exact LLM input", expanded=False):
+                st.code(latest_trace["llm_prompt"], language="markdown")
