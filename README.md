@@ -7,7 +7,9 @@ Practise Repository
   emerging global startups from Product Hunt-style launch signals, startup
   profiles, news evidence, and company pages. See
   [global_startup_radar/README.md](global_startup_radar/README.md) for setup,
-  architecture, tests, and the full RAG pipeline explanation.
+  architecture, tests, and the full RAG pipeline explanation. See
+  [global_startup_radar/docs/architecture.md](global_startup_radar/docs/architecture.md)
+  for the visual RAG architecture diagram.
 
 - **[project1](project1/)** — 🌍 *What the World Grows & Raises (1961–2024)*:
   an interactive Streamlit + Plotly world-map dashboard of top agricultural

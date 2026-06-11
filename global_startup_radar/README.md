@@ -4,6 +4,8 @@ Global Startup Radar is a Streamlit dashboard and live RAG pipeline for discover
 
 The project is built for a clear academic/demo submission: it shows every important RAG step instead of hiding the pipeline behind a chatbot.
 
+For a detailed visual architecture diagram, see [docs/architecture.md](docs/architecture.md).
+
 ## What The Project Does
 
 Users can ask questions such as:
