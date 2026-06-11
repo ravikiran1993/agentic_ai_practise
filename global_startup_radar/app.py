@@ -14,7 +14,7 @@ from startup_radar.chat import append_chat_turn, create_chat_turn
 from startup_radar.chunking import chunk_evidence_record
 from startup_radar.environment import apply_runtime_secrets, load_environment
 from startup_radar.ingestion.sample_data import load_sample_records
-from startup_radar.live_data import load_product_hunt_evidence
+from startup_radar.live_data import enrich_with_company_sites, load_product_hunt_evidence
 from startup_radar.live_pipeline import build_pinecone_filter, index_evidence, search_indexed_evidence
 from startup_radar.models import RetrievedEvidence
 from startup_radar.rag import build_answer_prompt, generate_answer
@@ -57,8 +57,16 @@ def load_demo_evidence() -> list[RetrievedEvidence]:
 
 
 @st.cache_data(ttl=900)
-def load_live_product_hunt_evidence(first: int, posted_after: str | None) -> list[RetrievedEvidence]:
-    return load_product_hunt_evidence(first=first, posted_after=posted_after or None)
+def load_live_product_hunt_evidence(
+    first: int,
+    posted_after: str | None,
+    enrich_websites: bool,
+    website_limit: int,
+) -> list[RetrievedEvidence]:
+    evidence = load_product_hunt_evidence(first=first, posted_after=posted_after or None)
+    if enrich_websites:
+        evidence = enrich_with_company_sites(evidence, limit=website_limit)
+    return evidence
 
 
 @st.cache_resource
@@ -112,13 +120,20 @@ with st.sidebar:
     data_mode = st.radio("Data mode", ["Full live RAG", "Demo sample"], index=0)
     product_hunt_count = st.slider("Product Hunt launches", 5, 50, 25, 5)
     posted_after = st.text_input("Posted after date", value="")
+    enrich_websites = st.toggle("Enrich with company websites", value=True)
+    website_limit = st.slider("Company websites to read", 0, 15, 5, 1)
 
 data_warning = None
 live_pipeline_ready = False
 vector_store = None
 if data_mode == "Full live RAG":
     try:
-        demo_items = load_live_product_hunt_evidence(product_hunt_count, posted_after)
+        demo_items = load_live_product_hunt_evidence(
+            product_hunt_count,
+            posted_after,
+            enrich_websites,
+            website_limit,
+        )
     except Exception as exc:
         data_warning = f"Live Product Hunt data is unavailable: {exc}. Falling back to demo data."
         demo_items = load_demo_evidence()

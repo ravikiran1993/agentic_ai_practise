@@ -1,6 +1,6 @@
 # Global Startup Radar
 
-Global Startup Radar is a Streamlit dashboard and live RAG pipeline for discovering emerging startups around the world. It combines startup evidence from Product Hunt with chunking, Gemini embeddings, Pinecone retrieval, reranking, and Gemini synthesis to answer startup trend questions with citations.
+Global Startup Radar is a Streamlit dashboard and live RAG pipeline for discovering emerging startups around the world. It combines startup evidence from Product Hunt and selected company websites with chunking, Gemini embeddings, Pinecone retrieval, reranking, and Gemini synthesis to answer startup trend questions with citations.
 
 The project is built for a clear academic/demo submission: it shows every important RAG step instead of hiding the pipeline behind a chatbot.
 
@@ -78,7 +78,7 @@ YC-style profile data adds startup metadata such as sector, geography, batch, an
 
 ### Curated News and Company Websites
 
-News articles and company pages provide context about funding, positioning, product claims, and market narratives. The MVP supports the normalized evidence model needed for these sources.
+Company websites provide context about product positioning, target users, features, and claims. In full live mode, the app can follow Product Hunt website URLs for a limited number of companies, extract readable homepage text, create website evidence chunks, and index those chunks alongside Product Hunt launch chunks.
 
 ## RAG Pipeline
 
@@ -147,7 +147,7 @@ GEMINI_EMBEDDING_DIMENSION=1024
 streamlit run app.py
 ```
 
-By default, the app runs in **Full live RAG** mode. It fetches Product Hunt launches, embeds the chunks with Gemini, indexes them in Pinecone, retrieves from Pinecone for each question, reranks the retrieved evidence, and sends the final cited prompt to Gemini.
+By default, the app runs in **Full live RAG** mode. It fetches Product Hunt launches, optionally enriches them with company website text, embeds the chunks with Gemini, indexes them in Pinecone, retrieves from Pinecone for each question, reranks the retrieved evidence, and sends the final cited prompt to Gemini.
 
 If you need an offline fallback, switch **Data mode** in the sidebar to **Demo sample**. Demo mode contains five sample startups and does not require external API calls.
 
@@ -208,12 +208,13 @@ The live integration path is:
 
 1. Use `startup_radar.ingestion.product_hunt.fetch_recent_product_hunt_posts()` to fetch recent launches.
 2. Normalize posts with `product_hunt_post_to_evidence()`.
-3. Chunk records with `chunk_evidence_record()`.
-4. Embed chunks with Gemini embeddings.
-5. Upsert vectors into Pinecone with `index_evidence()`.
-6. Retrieve relevant evidence from Pinecone with `search_indexed_evidence()`.
-7. Rerank with `rerank_evidence()`.
-8. Generate an answer with `generate_answer()`.
+3. Optionally fetch selected company websites with `fetch_company_site_to_evidence()`.
+4. Chunk records with `chunk_evidence_record()`.
+5. Embed chunks with Gemini embeddings.
+6. Upsert vectors into Pinecone with `index_evidence()`.
+7. Retrieve relevant evidence from Pinecone with `search_indexed_evidence()`.
+8. Rerank with `rerank_evidence()`.
+9. Generate an answer with `generate_answer()`.
 
 ## Cost Controls
 

@@ -10,13 +10,15 @@ flowchart TD
 
     subgraph sources["Data Sources"]
         ph["Product Hunt API<br/>Live startup/product launches<br/>name, tagline, description, topics,<br/>votes, comments, launch date, URLs"]
+        sites["Company websites<br/>Selected Product Hunt website URLs<br/>homepage/product positioning text"]
         demo["Demo sample fallback<br/>5 local sample startup records<br/>Used only when Demo sample mode is selected"]
-        future["Planned enrichment sources<br/>YC profiles, startup news, company websites,<br/>funding announcements"]
+        future["Planned enrichment sources<br/>YC profiles, startup news,<br/>funding announcements"]
     end
 
     subgraph ingestion["Ingestion And Normalization"]
         gql["Product Hunt GraphQL query<br/>posts(first, postedAfter, order: VOTES)"]
         normalize["Normalize each post into StartupEvidence<br/>startup_name, source_type, source_url,<br/>text, topics, sector, region, votes, comments"]
+        website_fetch["Optional website enrichment<br/>fetch homepage, strip scripts/styles/nav,<br/>extract readable text, create company_site evidence"]
     end
 
     subgraph chunking["Chunking"]
@@ -56,6 +58,7 @@ flowchart TD
     end
 
     ph --> gql --> normalize --> chunker
+    normalize --> sites --> website_fetch --> chunker
     demo --> normalize
     future -. future extension .-> normalize
     chunker --> chunktext --> gemembed
@@ -103,6 +106,22 @@ Product Hunt post
 -> Gemini embedding
 -> Pinecone vector
 ```
+
+### 2.5. Company Website Enrichment
+
+When **Enrich with company websites** is enabled, the app follows selected Product Hunt `website` URLs.
+
+For each selected website, `fetch_company_site_to_evidence()`:
+
+- downloads the homepage
+- strips scripts, styles, navigation, SVGs, and footer noise
+- collapses whitespace
+- caps readable text length
+- creates a `company_site` `StartupEvidence` record
+
+These website records are chunked, embedded, and indexed in Pinecone alongside Product Hunt launch chunks. Website enrichment improves questions about product positioning, target users, and feature details.
+
+Website failures are non-fatal. If a website blocks requests or times out, that website is skipped and the Product Hunt launch evidence remains available.
 
 ### 3. Chunking
 
@@ -265,6 +284,6 @@ global_startup_radar/src/startup_radar/trace.py
 
 ## Honest Scope
 
-The current live source is Product Hunt. Product Hunt is strong for launch freshness, topics, votes, comments, and product descriptions. It is not a reliable source for funding, revenue, valuation, or investor history.
+The current live sources are Product Hunt plus optional selected company websites. Product Hunt is strong for launch freshness, topics, votes, comments, and product descriptions. Company websites add product positioning and feature context. Neither source is a reliable source for funding, revenue, valuation, or investor history.
 
 To answer funding-round questions, the project would need additional sources such as funding announcements, company press releases, Crunchbase or Dealroom access, or startup news articles.
