@@ -150,7 +150,6 @@ with st.sidebar:
     selected_sectors = st.multiselect("Sectors", all_sectors)
     selected_regions = st.multiselect("Regions", all_regions)
     min_trend_score = st.slider("Minimum trend score", 0, 100, 0)
-    answer_mode = st.radio("Answer mode", ["Prompt preview", "Live Gemini call"], index=0)
     if st.button("Clear chat", use_container_width=True):
         st.session_state.chat_history = []
         st.session_state.latest_evidence = []
@@ -232,13 +231,13 @@ with left:
         final_prompt = build_answer_prompt(prompt, turn_ranked[:8]) if turn_ranked else ""
         if not turn_ranked:
             answer = "No matching evidence was found for this question and filter set."
-        elif answer_mode == "Live Gemini call":
+            answer_mode = "Live Gemini call"
+        else:
+            answer_mode = "Live Gemini call"
             try:
                 answer = generate_answer(prompt, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
             except Exception as exc:
                 answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{final_prompt}"
-        else:
-            answer = final_prompt
 
         trace = build_rag_trace(
             query=prompt,

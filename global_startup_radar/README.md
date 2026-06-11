@@ -24,7 +24,7 @@ The dashboard returns:
 - a behind-the-scenes RAG trace for each question
 - source URLs
 - charts by sector/source/region
-- a prompt preview or live Gemini-generated answer
+- a live Gemini-generated answer
 
 ## Why This Is More Than A Basic RAG Chatbot
 
@@ -200,7 +200,7 @@ The tests intentionally focus on pure logic that does not require paid services:
 
 The dashboard uses Gemini for live answer generation through `GOOGLE_API_KEY`, using `gemini-2.5-flash` by default. You can override the model with `GEMINI_MODEL` in `.env`.
 
-Use **Prompt preview** mode when you want to inspect the retrieved context without making any LLM API calls. Use **Live Gemini call** when you want the dashboard to generate a cited answer.
+The dashboard uses Gemini live for chat answers. The behind-the-scenes panel still shows the exact LLM prompt for inspection after each question.
 
 ## Live Integration Path
 
@@ -221,8 +221,8 @@ The live integration path is:
 - The sample dataset works without external services.
 - Product Hunt ingestion is separate from dashboard rendering.
 - Embeddings and Pinecone writes should be run intentionally, not on every page refresh.
-- The dashboard defaults to prompt preview mode.
-- Live Gemini calls only happen when the user selects "Live Gemini call".
+- Gemini calls happen when the user submits a chat question.
+- The behind-the-scenes trace shows the exact prompt used for each Gemini call.
 
 ## Limitations
 
