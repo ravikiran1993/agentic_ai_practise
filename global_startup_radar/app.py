@@ -19,6 +19,7 @@ from startup_radar.live_pipeline import build_pinecone_filter, index_evidence, s
 from startup_radar.models import RetrievedEvidence
 from startup_radar.rag import build_answer_prompt, generate_answer
 from startup_radar.reranking import rerank_evidence
+from startup_radar.suggestions import get_suggested_questions
 from startup_radar.trace import build_rag_trace
 from startup_radar.vector_store import create_pinecone_vector_store
 
@@ -192,6 +193,57 @@ dashboard_ranked = rerank_evidence(filtered, query=default_query, today="2026-06
 dashboard_ranked = [item for item in dashboard_ranked if item.trend_score >= min_trend_score]
 df = to_dataframe(dashboard_ranked)
 
+
+def run_chat_turn(question: str) -> None:
+    source_chunks = filtered
+    pinecone_filter = None
+    pinecone_top_k = None
+    if live_pipeline_ready and vector_store is not None:
+        pinecone_filter = build_pinecone_filter(selected_sources, selected_sectors, selected_regions)
+        pinecone_top_k = min(max(product_hunt_count, 10), 50)
+        try:
+            pinecone_results = search_indexed_evidence(
+                vector_store,
+                question,
+                k=pinecone_top_k,
+                metadata_filter=pinecone_filter,
+            )
+        except Exception as exc:
+            st.warning(f"Pinecone retrieval failed, using local fallback: {exc}")
+            pinecone_results = filtered
+    else:
+        pinecone_results = filtered
+
+    turn_ranked = rerank_evidence(pinecone_results, query=question, today="2026-06-10")
+    turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
+    final_prompt = build_answer_prompt(question, turn_ranked[:8]) if turn_ranked else ""
+    answer_mode = "Live Gemini call"
+    if not turn_ranked:
+        answer = "No matching evidence was found for this question and filter set."
+    else:
+        try:
+            answer = generate_answer(question, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
+        except Exception as exc:
+            answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{final_prompt}"
+
+    trace = build_rag_trace(
+        query=question,
+        source_chunks=source_chunks,
+        pinecone_results=pinecone_results,
+        reranked=turn_ranked[:8],
+        final_prompt=final_prompt,
+        pinecone_filter=pinecone_filter,
+        pinecone_top_k=pinecone_top_k,
+    )
+    st.session_state.latest_evidence = turn_ranked[:8]
+    st.session_state.latest_trace = trace
+    st.session_state.chat_history = append_chat_turn(
+        st.session_state.chat_history,
+        create_chat_turn(question, answer, turn_ranked[:8], answer_mode, trace),
+    )
+    st.rerun()
+
+
 left, right = st.columns([1.3, 1])
 
 with left:
@@ -205,56 +257,21 @@ with left:
         with st.chat_message("assistant"):
             st.write(turn["answer"])
 
+    st.subheader("Suggested questions")
+    suggested_questions = get_suggested_questions()
+    for row_start in range(0, len(suggested_questions), 2):
+        columns = st.columns(2)
+        for offset, column in enumerate(columns):
+            question_index = row_start + offset
+            if question_index >= len(suggested_questions):
+                continue
+            question = suggested_questions[question_index]
+            if column.button(question, key=f"suggested_question_{question_index}", use_container_width=True):
+                run_chat_turn(question)
+
     prompt = st.chat_input("Ask a follow-up about emerging startups")
     if prompt:
-        source_chunks = filtered
-        pinecone_filter = None
-        pinecone_top_k = None
-        if live_pipeline_ready and vector_store is not None:
-            pinecone_filter = build_pinecone_filter(selected_sources, selected_sectors, selected_regions)
-            pinecone_top_k = min(max(product_hunt_count, 10), 50)
-            try:
-                pinecone_results = search_indexed_evidence(
-                    vector_store,
-                    prompt,
-                    k=pinecone_top_k,
-                    metadata_filter=pinecone_filter,
-                )
-            except Exception as exc:
-                st.warning(f"Pinecone retrieval failed, using local fallback: {exc}")
-                pinecone_results = filtered
-        else:
-            pinecone_results = filtered
-
-        turn_ranked = rerank_evidence(pinecone_results, query=prompt, today="2026-06-10")
-        turn_ranked = [item for item in turn_ranked if item.trend_score >= min_trend_score]
-        final_prompt = build_answer_prompt(prompt, turn_ranked[:8]) if turn_ranked else ""
-        if not turn_ranked:
-            answer = "No matching evidence was found for this question and filter set."
-            answer_mode = "Live Gemini call"
-        else:
-            answer_mode = "Live Gemini call"
-            try:
-                answer = generate_answer(prompt, turn_ranked[:8], provider="gemini", model=os.getenv("GEMINI_MODEL"))
-            except Exception as exc:
-                answer = f"Live Gemini answer generation is unavailable: {exc}\n\nPrompt preview:\n\n{final_prompt}"
-
-        trace = build_rag_trace(
-            query=prompt,
-            source_chunks=source_chunks,
-            pinecone_results=pinecone_results,
-            reranked=turn_ranked[:8],
-            final_prompt=final_prompt,
-            pinecone_filter=pinecone_filter,
-            pinecone_top_k=pinecone_top_k,
-        )
-        st.session_state.latest_evidence = turn_ranked[:8]
-        st.session_state.latest_trace = trace
-        st.session_state.chat_history = append_chat_turn(
-            st.session_state.chat_history,
-            create_chat_turn(prompt, answer, turn_ranked[:8], answer_mode, trace),
-        )
-        st.rerun()
+        run_chat_turn(prompt)
 
     st.subheader("Ranked startups")
     if df.empty:

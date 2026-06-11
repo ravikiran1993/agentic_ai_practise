@@ -18,6 +18,7 @@ Users can ask questions such as:
 The dashboard returns:
 
 - a chat-style question and answer history
+- suggested demo questions users can click
 - a ranked startup table
 - trend scores
 - evidence snippets
@@ -153,7 +154,7 @@ By default, the app runs in **Full live RAG** mode. It fetches Product Hunt laun
 
 If you need an offline fallback, switch **Data mode** in the sidebar to **Demo sample**. Demo mode contains five sample startups and does not require external API calls.
 
-Use the chat input at the bottom of the main panel to ask multiple startup-trend questions in sequence. In full live mode, each question retrieves semantically relevant chunks from Pinecone before reranking and answer generation.
+Use the suggested question buttons for guided demos, or use the chat input at the bottom of the main panel to ask custom startup-trend questions. In full live mode, each question retrieves semantically relevant chunks from Pinecone before reranking and answer generation.
 
 The **Behind the scenes** panel shows how each question moves through the RAG pipeline: source chunks prepared for indexing, Gemini embedding/Pinecone query details, Pinecone retrieval output before reranking, final order after reranking, scores, and the exact prompt sent to the LLM.
 
